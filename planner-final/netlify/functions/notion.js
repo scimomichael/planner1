@@ -1,4 +1,4 @@
-// Notion proxy — server-side so the token never hits the browser
+// Notion proxy — token stays server-side, never in the browser
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_ID = process.env.NOTION_DATABASE_ID || "24df8257bb1581908084ec8bde52cf72";
 
@@ -26,6 +26,15 @@ async function notion(path, method = "GET", body = null) {
   return r.json();
 }
 
+const mapItem = (p) => ({
+  id: p.id,
+  name: p.properties?.Name?.title?.[0]?.plain_text || "Untitled",
+  status: p.properties?.Status?.status?.name || "Not started",
+  due: p.properties?.["Due date"]?.date?.start || null,
+  description: p.properties?.Description?.rich_text?.[0]?.plain_text || "",
+  notionUrl: p.url,
+});
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: CORS };
 
@@ -34,39 +43,46 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || "{}"); } catch {}
 
   try {
-    // ── LIST: fetch Not started + In progress only ──────────────────────
+
+    // LIST: auto-imports Not started + In progress only.
+    // Also fetches Done so the website can show a Done column.
     if (action === "list") {
-      const data = await notion(`/databases/${DB_ID}/query`, "POST", {
-        filter: {
-          or: [
-            { property: "Status", status: { equals: "Not started" } },
-            { property: "Status", status: { equals: "In progress" } },
-          ],
-        },
-        sorts: [{ property: "Due date", direction: "ascending" }],
-        page_size: 100,
-      });
+      const [activeRes, doneRes] = await Promise.all([
+        notion(`/databases/${DB_ID}/query`, "POST", {
+          filter: {
+            or: [
+              { property: "Status", status: { equals: "Not started" } },
+              { property: "Status", status: { equals: "In progress" } },
+            ],
+          },
+          sorts: [{ property: "Due date", direction: "ascending" }],
+          page_size: 100,
+        }),
+        notion(`/databases/${DB_ID}/query`, "POST", {
+          filter: { property: "Status", status: { equals: "Done" } },
+          sorts: [{ property: "Due date", direction: "descending" }],
+          page_size: 50,
+        }),
+      ]);
 
-      const items = (data.results || []).map((p) => ({
-        id: p.id,
-        name: p.properties?.Name?.title?.[0]?.plain_text || "Untitled",
-        status: p.properties?.Status?.status?.name || "Not started",
-        due: p.properties?.["Due date"]?.date?.start || null,
-        description: p.properties?.Description?.rich_text?.[0]?.plain_text || "",
-        notionUrl: p.url,
-      }));
-
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ items }) };
+      return {
+        statusCode: 200,
+        headers: CORS,
+        body: JSON.stringify({
+          items: (activeRes.results || []).map(mapItem),
+          done:  (doneRes.results  || []).map(mapItem),
+        }),
+      };
     }
 
-    // ── CREATE ──────────────────────────────────────────────────────────
+    // CREATE
     if (action === "create") {
       const props = {
-        Name: { title: [{ text: { content: body.name || "New task" } }] },
+        Name:   { title: [{ text: { content: body.name || "New task" } }] },
         Status: { status: { name: body.status || "Not started" } },
       };
-      if (body.due) props["Due date"] = { date: { start: body.due } };
-      if (body.description) props.Description = { rich_text: [{ text: { content: body.description } }] };
+      if (body.due)         props["Due date"]  = { date: { start: body.due } };
+      if (body.description) props.Description  = { rich_text: [{ text: { content: body.description } }] };
 
       const page = await notion("/pages", "POST", {
         parent: { database_id: DB_ID },
@@ -75,16 +91,16 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ id: page.id, url: page.url }) };
     }
 
-    // ── UPDATE (status change, name, due, description) ──────────────────
+    // UPDATE
     if (action === "update") {
       const { id, ...fields } = body;
       if (!id) throw new Error("Missing id");
 
       const props = {};
       if (fields.name !== undefined)
-        props.Name = { title: [{ text: { content: fields.name } }] };
+        props.Name        = { title: [{ text: { content: fields.name } }] };
       if (fields.status)
-        props.Status = { status: { name: fields.status } };
+        props.Status      = { status: { name: fields.status } };
       if ("due" in fields)
         props["Due date"] = fields.due ? { date: { start: fields.due } } : { date: null };
       if ("description" in fields)
@@ -94,7 +110,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true }) };
     }
 
-    // ── DELETE (archive) ────────────────────────────────────────────────
+    // DELETE (archive)
     if (action === "delete") {
       if (!body.id) throw new Error("Missing id");
       await notion(`/pages/${body.id}`, "PATCH", { archived: true });

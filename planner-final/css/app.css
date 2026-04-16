@@ -475,3 +475,13 @@ h1 { font-size: 34px; font-weight: 700; letter-spacing: -.7px; line-height: 1.1;
 
 /* ─── EMPTY STATE ────────────────────────────────────────────────── */
 .empty { text-align:center; padding:28px 0; font-size:13px; color:var(--tx4); }
+
+/* ── DONE COLUMN ─────────────────────────────────────────────────────── */
+.kb-col:last-child { opacity: .8; }
+.kb-col:last-child .kb-col-hd { color: var(--green); }
+.task-card.done .tc-name { text-decoration: line-through; color: var(--tx3); }
+.task-card.done { opacity: .55; }
+
+/* ── KANBAN 3 cols ───────────────────────────────────────────────────── */
+.kanban { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 860px) { .kanban { grid-template-columns: 1fr; } }
