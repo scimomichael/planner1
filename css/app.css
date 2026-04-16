@@ -32,8 +32,8 @@ input,select,textarea{font:inherit}
 
   --hw:  #2563eb; --hw-bg:  #eff4ff; --hw-bd:  #93b4fd;
   --test:#dc2626; --test-bg:#fef2f2; --test-bd:#fca5a5;
-  --ec:  #d97706; --ec-bg:  #fffbeb; --ec-bd:  #fcd34d;
-  --per: #16a34a; --per-bg: #f0fdf4; --per-bd: #86efac;
+  --ec:  #16a34a; --ec-bg:  #f0fdf4; --ec-bd:  #86efac;
+  --per: #6b7280; --per-bg: #f3f4f6; --per-bd: #d1d5db;
 
   --green:  #16a34a;
   --orange: #d97706;
@@ -59,8 +59,8 @@ input,select,textarea{font:inherit}
     --blue:#3b82f6; --blue-bg:rgba(59,130,246,.13); --blue-bd:rgba(59,130,246,.32);
     --hw-bg:rgba(37,99,235,.14); --hw-bd:rgba(37,99,235,.35);
     --test-bg:rgba(220,38,38,.14); --test-bd:rgba(220,38,38,.35);
-    --ec-bg:rgba(217,119,6,.14); --ec-bd:rgba(217,119,6,.35);
-    --per-bg:rgba(22,163,74,.14); --per-bd:rgba(22,163,74,.35);
+    --ec-bg:rgba(22,163,74,.14); --ec-bd:rgba(22,163,74,.35);
+    --per-bg:rgba(107,114,128,.14); --per-bd:rgba(107,114,128,.35);
   }
 }
 
