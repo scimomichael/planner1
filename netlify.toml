@@ -1,0 +1,8 @@
+[build]
+  publish = "planner-final"
+  functions = "planner-final/netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
