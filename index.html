@@ -84,7 +84,7 @@
               <button onclick="Sched.shift(1)">›</button>
             </div>
           </div>
-          <div id="schedGrid" class="sched-wrap"></div>
+          <div id="schedGrid" class="sched-wrap" style="height:480px"></div>
         </div>
         <div class="today-sidebar">
           <div class="panel-hd">
@@ -109,7 +109,7 @@
           <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
         </div>
       </div>
-      <div id="schedFullGrid" class="sched-wrap sched-full"></div>
+      <div id="schedFullGrid" class="sched-wrap sched-full" style="height:600px"></div>
     </div>
 
     <!-- WEEK -->
@@ -269,6 +269,10 @@
           <option value="">— None —</option>
         </select>
       </div>
+"      <div class="m-field" style="margin-top:12px">
+        <div class="m-lbl">Timezone</div>
+        <select class="m-sel tz-select" id="bTz"></select>
+      </div>"
     </div>
     <div class="modal-ft">
       <button class="btn-ghost" onclick="BlockModal.close()">Cancel</button>
@@ -310,6 +314,10 @@
           <option value="">— None —</option>
         </select>
       </div>
+"      <div class="m-field" style="margin-top:12px">
+        <div class="m-lbl">Timezone</div>
+        <select class="m-sel tz-select" id="ebTz"></select>
+      </div>"
     </div>
     <div class="modal-ft">
       <button class="btn-delete" onclick="EditBlockModal.del()">Delete</button>

@@ -1,222 +1,249 @@
 // ══════════════════════════════════════════════════════════
-// SCHEDULE — visual time blocks with task linking,
-//            edit/move, cross-off, 15-min granularity
+// SCHEDULE — visual blocks, task linking, edit/move,
+//            cross-off, 15-min slots, 12h AM/PM,
+//            auto timezone, per-block tz, auto-scroll to now,
+//            Meeting block type (teal)
 // ══════════════════════════════════════════════════════════
 const Sched = (() => {
-  const SLOT_H  = 28;   // px per 15-min slot
-  const SLOT_MIN= 15;
+  const SLOT_H   = 28;
+  const SLOT_MIN = 15;
 
   const BLOCK_TYPES = [
-    {id:'class', label:'Class', css:'sb-class'},
-    {id:'study', label:'Study', css:'sb-study'},
-    {id:'ec',    label:'EC',    css:'sb-ec'},
-    {id:'free',  label:'Free',  css:'sb-free'},
-    {id:'meal',  label:'Meal',  css:'sb-meal'},
-    {id:'sleep', label:'Sleep', css:'sb-sleep'},
-    {id:'work',  label:'Work',  css:'sb-work'},
-    {id:'other', label:'Other', css:'sb-other'},
+    {id:'class',   label:'Class',   css:'sb-class'},
+    {id:'meeting', label:'Meeting', css:'sb-meeting'},
+    {id:'study',   label:'Study',   css:'sb-study'},
+    {id:'ec',      label:'EC',      css:'sb-ec'},
+    {id:'free',    label:'Free',    css:'sb-free'},
+    {id:'meal',    label:'Meal',    css:'sb-meal'},
+    {id:'sleep',   label:'Sleep',   css:'sb-sleep'},
+    {id:'work',    label:'Work',    css:'sb-work'},
+    {id:'other',   label:'Other',   css:'sb-other'},
   ];
 
-  // 5:00 AM to 2:00 AM = hours 5..23, 0, 1
-  const HOURS = [...Array.from({length:19},(_,i)=>i+5), 0, 1]; // 5-23, 0, 1
-  const TOTAL_SLOTS = HOURS.length * 4; // 80 slots
+  const HOURS = [...Array.from({length:19},(_,i)=>i+5), 0, 1];
+  const TOTAL_SLOTS = HOURS.length * 4;
 
-  function hqToMins(h,q) { return h*60 + q*15; }
-  function minsToHQ(mins) { return { h: Math.floor(mins/60)%24, q: Math.floor((mins%60)/15) }; }
+  // ── Timezone ────────────────────────────────────────────
+  let localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  function fmtHQ(h,q) {
-    const mm = ['00','15','30','45'][q];
-    if (h===0)  return `12:${mm} AM`;
-    if (h===12) return `12:${mm} PM`;
-    return h<12 ? `${h}:${mm} AM` : `${h-12}:${mm} PM`;
+  function detectTz() {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz && tz !== localTz) {
+        localTz = tz;
+        Store.toast('Timezone: ' + tz);
+        renderBoth();
+      }
+    } catch(e) {}
+  }
+  setInterval(detectTz, 30000);
+
+  function getOffsetMinutes(tz, date) {
+    try {
+      const u = new Date(date.toLocaleString('en-US', {timeZone:'UTC'}));
+      const t = new Date(date.toLocaleString('en-US', {timeZone:tz}));
+      return (t - u) / 60000;
+    } catch(e) { return 0; }
   }
 
-  function timeStrToMins(t) {
-    if (!t) return null;
-    const [h,m] = t.split(':').map(Number);
-    return h*60+m;
-  }
-  function minsToTimeStr(m) {
-    return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  function convertToLocalTz(timeStr, srcTz) {
+    if (!timeStr || !srcTz || srcTz === localTz) return timeStr;
+    try {
+      const [h, m] = timeStr.split(':').map(Number);
+      const today = new Date();
+      today.setHours(h, m, 0, 0);
+      const srcOff   = getOffsetMinutes(srcTz,   today);
+      const localOff = getOffsetMinutes(localTz,  today);
+      const diff     = srcOff - localOff;
+      const total    = h*60 + m - diff;
+      const nh = ((Math.floor(total/60)) % 24 + 24) % 24;
+      const nm = ((total % 60) + 60) % 60;
+      return `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
+    } catch(e) { return timeStr; }
   }
 
-  function slotTopPx(h, q) {
-    // Find index of h in HOURS
-    let idx = HOURS.indexOf(h);
-    if (idx < 0) idx = 0;
-    return (idx * 4 + q) * SLOT_H;
+  // ── Time helpers (always 12h AM/PM) ───────────────────
+  function fmt12(h, m) {
+    const ap = h < 12 ? 'AM' : 'PM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
   }
+  function fmtHQ(h, q)  { return fmt12(h, q*15); }
+  function fmtStr(t)    { if(!t) return ''; const [h,m]=t.split(':').map(Number); return fmt12(h,m); }
+  function toMins(t)    { if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; }
+  function fromMins(m)  { return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
 
-  function blockHeightPx(startMins, endMins) {
-    const diff = endMins - startMins;
-    if (diff <= 0) return SLOT_H;
-    return Math.max(SLOT_H, Math.round(diff / SLOT_MIN) * SLOT_H);
+  function slotTop(h, q) {
+    const idx = HOURS.indexOf(h);
+    return ((idx < 0 ? 0 : idx) * 4 + q) * SLOT_H;
+  }
+  function blockH(sM, eM) {
+    const diff = (eM ?? sM+60) - sM;
+    return Math.max(SLOT_H, Math.round(Math.max(diff,0)/SLOT_MIN)*SLOT_H);
   }
 
   // ── Offsets ────────────────────────────────────────────
-  let offset     = 0;
-  let fullOffset = 0;
-
-  function dateForOffset(off) {
-    const d = new Date(Store.today());
-    d.setDate(d.getDate() + off);
-    return d;
-  }
+  let offset=0, fullOffset=0;
+  function dateFor(off) { const d=new Date(Store.today()); d.setDate(d.getDate()+off); return d; }
   function dayLabel(d) {
     const n = Store.daysUntil(Store.toStr(d));
-    if (n===0)  return `Today · ${d.toLocaleDateString('en-US',{weekday:'long'})}`;
-    if (n===1)  return `Tomorrow · ${d.toLocaleDateString('en-US',{weekday:'long'})}`;
-    if (n===-1) return `Yesterday · ${d.toLocaleDateString('en-US',{weekday:'long'})}`;
+    const dow = d.toLocaleDateString('en-US',{weekday:'long'});
+    if(n===0)  return `Today · ${dow}`;
+    if(n===1)  return `Tomorrow · ${dow}`;
+    if(n===-1) return `Yesterday · ${dow}`;
     return d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
   }
 
-  function shift(dir) { offset += dir; render('schedGrid','schedLabel',offset); }
-  function shiftFull(dir) { fullOffset += dir; render('schedFullGrid','schedFullSub',fullOffset); }
-  function getOffset() { return offset; }
+  function shift(dir)     { offset+=dir;     render('schedGrid','schedLabel',offset); }
+  function shiftFull(dir) { fullOffset+=dir; render('schedFullGrid','schedFullSub',fullOffset); }
+  function getOffset()     { return offset; }
   function getFullOffset() { return fullOffset; }
 
-  // ── Main render ───────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────
   function render(gridId, labelId, off) {
-    const d   = dateForOffset(off);
-    const dk  = Store.toStr(d);
+    const d      = dateFor(off);
+    const dk     = Store.toStr(d);
     const blocks = Store.schedule[dk] || [];
+    const isToday = (off === 0 && gridId === 'schedGrid');
 
-    if (labelId) {
-      const el = document.getElementById(labelId);
-      if (el) el.textContent = dayLabel(d);
-    }
+    if (labelId) { const el=document.getElementById(labelId); if(el) el.textContent=dayLabel(d); }
 
     const wrap = document.getElementById(gridId);
     if (!wrap) return;
     wrap.innerHTML = '';
+    wrap.style.position = 'relative';
 
     const totalH = TOTAL_SLOTS * SLOT_H;
 
-    // Axis column
+    // Time axis (fixed left column)
     const axis = document.createElement('div');
     axis.className = 'sched-axis';
     axis.style.height = totalH + 'px';
-
-    // Labels every hour (q=0)
     HOURS.forEach((h,i) => {
-      const label = document.createElement('div');
-      label.className = 'sched-axis-label';
-      label.style.top = (i*4*SLOT_H) + 'px';
-      label.style.transform = 'translateY(-50%)';
-      if (i===0) label.style.transform = 'translateY(0)';
-      label.textContent = fmtHQ(h,0);
-      axis.appendChild(label);
+      const lbl = document.createElement('div');
+      lbl.className = 'sched-axis-label';
+      lbl.style.top = (i*4*SLOT_H)+'px';
+      lbl.style.transform = i===0 ? 'translateY(0)' : 'translateY(-50%)';
+      lbl.textContent = fmtHQ(h, 0);
+      axis.appendChild(lbl);
     });
     wrap.appendChild(axis);
 
-    // Slots container
-    const slots = document.createElement('div');
-    slots.className = 'sched-slots';
-    slots.style.height = totalH + 'px';
+    // Scrollable content area
+    const scroller = document.createElement('div');
+    scroller.className = 'sched-scroller';
 
+    const inner = document.createElement('div');
+    inner.style.cssText = `position:relative;height:${totalH}px`;
+
+    // "Now" line
+    if (isToday) {
+      const now = new Date();
+      const nowM = now.getHours()*60 + now.getMinutes();
+      const adjM = nowM < 120 ? nowM+24*60 : nowM;
+      const startM = 5*60, endM = 26*60;
+      if (adjM >= startM && adjM <= endM) {
+        const topPx = ((adjM - startM) / (endM - startM)) * totalH;
+        const line = document.createElement('div');
+        line.className = 'now-line';
+        line.style.top = topPx + 'px';
+        inner.appendChild(line);
+      }
+    }
+
+    // Click slots
     HOURS.forEach((h,hi) => {
       for (let q=0;q<4;q++) {
         const slot = document.createElement('div');
-        slot.className = 'sched-slot' + (q===0 ? ' hour-top' : '');
-        slot.style.top    = ((hi*4+q)*SLOT_H) + 'px';
-        slot.style.height = SLOT_H + 'px';
-        slot.style.position = 'absolute';
-        slot.style.left = '0'; slot.style.right = '0';
+        slot.className = 'sched-slot'+(q===0?' hour-top':'');
+        slot.style.cssText=`position:absolute;left:0;right:0;top:${(hi*4+q)*SLOT_H}px;height:${SLOT_H}px`;
         slot.addEventListener('click', () => BlockModal.open(dk, h, q));
-        slots.appendChild(slot);
+        inner.appendChild(slot);
       }
     });
 
-    // Render blocks
+    // Visual blocks
     blocks.forEach((b, bi) => {
-      const startMins = timeStrToMins(b.start);
-      const endMins   = timeStrToMins(b.end);
-      if (startMins === null) return;
-
-      // Find top position
-      const { h: sh, q: sq } = minsToHQ(startMins);
-      const top = slotTopPx(sh, sq);
-      const height = blockHeightPx(startMins, endMins ?? startMins + 60);
-
-      // Linked task
+      const dispStart = b.storedTz ? convertToLocalTz(b.start, b.storedTz) : b.start;
+      const dispEnd   = b.storedTz ? convertToLocalTz(b.end,   b.storedTz) : b.end;
+      const sM = toMins(dispStart);
+      if (sM === null) return;
+      const eM  = toMins(dispEnd) ?? sM+60;
+      const sh  = Math.floor(sM/60)%24;
+      const sq  = Math.floor((sM%60)/15);
+      const top = slotTop(sh, sq);
+      const ht  = blockH(sM, eM);
       const linkedTask = b.taskId ? Store.tasks.find(t=>t.id===b.taskId) : null;
+      const timeDisp = dispStart && dispEnd ? `${fmtStr(dispStart)}–${fmtStr(dispEnd)}` : dispStart ? fmtStr(dispStart) : '';
+      const tzNote = b.storedTz && b.storedTz !== localTz
+        ? `<div class="sched-block-tz">${b.storedTz.split('/').pop().replace(/_/g,' ')}</div>` : '';
 
       const block = document.createElement('div');
       block.className = `sched-block ${b.css||'sb-other'}${b.done?' sched-block-done':''}`;
-      block.style.top    = top + 'px';
-      block.style.height = height + 'px';
-
-      const timeLabel = b.start && b.end ? `${b.start}–${b.end}` : b.start || '';
-
+      block.style.cssText = `top:${top}px;height:${ht}px`;
       block.innerHTML = `
-        <div class="sched-block-check${b.done?' done':''}" onclick="event.stopPropagation();Sched.toggleDone('${dk}',${bi})"></div>
+        <div class="sched-block-check${b.done?' done':''}"
+             onclick="event.stopPropagation();Sched.toggleDone('${dk}',${bi})"></div>
         <div class="sched-block-label">${Store.esc(b.label)}</div>
-        ${timeLabel ? `<div class="sched-block-time">${timeLabel}</div>` : ''}
+        ${timeDisp ? `<div class="sched-block-time">${timeDisp}</div>` : ''}
+        ${tzNote}
         ${linkedTask ? `<div class="sched-block-task">→ ${Store.esc(linkedTask.name)}</div>` : ''}
       `;
-
       block.addEventListener('click', () => EditBlockModal.open(dk, bi));
-      slots.appendChild(block);
+      inner.appendChild(block);
     });
 
-    wrap.appendChild(slots);
-    wrap.style.position = 'relative';
-  }
+    scroller.appendChild(inner);
+    wrap.appendChild(scroller);
 
-  function toggleDone(dk, bi) {
-    const blocks = Store.schedule[dk];
-    if (!blocks || !blocks[bi]) return;
-    blocks[bi].done = !blocks[bi].done;
-    Store.persist();
-    renderBoth();
-  }
-
-  function renderBoth() {
-    render('schedGrid', 'schedLabel', offset);
-    if (document.getElementById('view-schedule').classList.contains('active')) {
-      render('schedFullGrid', 'schedFullSub', fullOffset);
+    // Auto-scroll to current time (today only, schedGrid only)
+    if (isToday) {
+      requestAnimationFrame(() => {
+        const now  = new Date();
+        const nowM = now.getHours()*60 + now.getMinutes();
+        const adjM = nowM < 120 ? nowM+24*60 : nowM;
+        const startM = 5*60;
+        const pct  = Math.max(0, (adjM - startM) / (TOTAL_SLOTS * SLOT_MIN));
+        const scrollTo = pct * totalH - (scroller.clientHeight / 2);
+        scroller.scrollTop = Math.max(0, scrollTo);
+      });
     }
   }
 
+  function renderBoth() {
+    render('schedGrid','schedLabel',offset);
+    if (document.getElementById('view-schedule')?.classList.contains('active')) {
+      render('schedFullGrid','schedFullSub',fullOffset);
+    }
+  }
+
+  function toggleDone(dk, bi) {
+    const b=Store.schedule[dk]; if(!b?.[bi]) return;
+    b[bi].done=!b[bi].done; Store.persist(); renderBoth();
+  }
   function addBlock(dk, block) {
-    if (!Store.schedule[dk]) Store.schedule[dk] = [];
-    Store.schedule[dk].push(block);
-    Store.persist();
-    renderBoth();
+    if(!Store.schedule[dk]) Store.schedule[dk]=[];
+    Store.schedule[dk].push(block); Store.persist(); renderBoth();
   }
-
   function updateBlock(dk, bi, block) {
-    if (!Store.schedule[dk]) return;
-    Store.schedule[dk][bi] = block;
-    Store.persist();
-    renderBoth();
+    if(!Store.schedule[dk]) return;
+    Store.schedule[dk][bi]=block; Store.persist(); renderBoth();
   }
-
   function removeBlock(dk, bi) {
-    if (!Store.schedule[dk]) return;
-    Store.schedule[dk].splice(bi, 1);
-    Store.persist();
-    renderBoth();
+    if(!Store.schedule[dk]) return;
+    Store.schedule[dk].splice(bi,1); Store.persist(); renderBoth();
   }
 
-  function moveBlock(fromDk, bi, toDk) {
-    const block = Store.schedule[fromDk]?.[bi];
-    if (!block) return;
-    Store.schedule[fromDk].splice(bi, 1);
-    if (!Store.schedule[toDk]) Store.schedule[toDk] = [];
-    Store.schedule[toDk].push(block);
-    Store.persist();
-    renderBoth();
-  }
-
-  function getBlockTypes() { return BLOCK_TYPES; }
-  function fmtTime(h,q)   { return fmtHQ(h,q); }
+  function getBlockTypes()  { return BLOCK_TYPES; }
+  function getLocalTz()     { return localTz; }
+  function minsToTimeStr(m) { return fromMins(m); }
+  function fmtTimeStr(t)    { return fmtStr(t); }
 
   return {
     shift, shiftFull, getOffset, getFullOffset,
     render, renderBoth,
-    addBlock, updateBlock, removeBlock, moveBlock,
-    toggleDone, getBlockTypes, fmtTime, minsToTimeStr,
+    addBlock, updateBlock, removeBlock, toggleDone,
+    getBlockTypes, getLocalTz, minsToTimeStr, fmtTimeStr,
   };
 })();
 
@@ -225,230 +252,128 @@ const Sched = (() => {
 // BLOCK MODAL — add new block
 // ══════════════════════════════════════════════════════════
 const BlockModal = (() => {
-  let dk = null, h = 0, q = 0;
-  let activeType = 'study';
+  let _dk=null, _type='study';
 
-  function open(dayKey, hour, quarter) {
-    dk = dayKey; h = hour; q = quarter;
+  function setType(t) { _type=t; renderTypeGrid('btypeGrid',t,setType); }
 
-    const d = new Date(dk+'T00:00:00');
+  function open(dk, h, q) {
+    _dk=dk; _type='study';
+    const d=new Date(dk+'T00:00:00');
     document.getElementById('blockModalTitle').textContent =
       `Add block · ${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
-
-    document.getElementById('bLabel').value = '';
-
-    // Default times from clicked slot
-    const startMins = hour*60 + quarter*15;
-    const endMins   = startMins + 60;
-    document.getElementById('bStart').value =
-      `${String(Math.floor(startMins/60)).padStart(2,'0')}:${String(startMins%60).padStart(2,'0')}`;
-    document.getElementById('bEnd').value =
-      `${String(Math.floor(endMins/60)%24).padStart(2,'0')}:${String(endMins%60).padStart(2,'0')}`;
-
-    renderTypeGrid('btypeGrid', activeType, t => { activeType=t; renderTypeGrid('btypeGrid',t,arguments.callee); });
-    populateTaskSelect('bTaskLink', null);
-
+    document.getElementById('bLabel').value='';
+    const sM=h*60+q*15, eM=sM+60;
+    document.getElementById('bStart').value=Sched.minsToTimeStr(sM);
+    document.getElementById('bEnd').value=Sched.minsToTimeStr(eM%(24*60));
+    renderTypeGrid('btypeGrid',_type,setType);
+    populateTaskSelect('bTaskLink',null);
+    buildTzSelect('bTz');
     document.getElementById('blockBackdrop').classList.add('open');
-    setTimeout(()=>document.getElementById('bLabel').focus(), 40);
+    setTimeout(()=>document.getElementById('bLabel').focus(),40);
   }
 
   function close() { document.getElementById('blockBackdrop').classList.remove('open'); }
-  function bdClick(e) { if (e.target.id==='blockBackdrop') close(); }
+  function bdClick(e) { if(e.target.id==='blockBackdrop') close(); }
 
   function save() {
-    const label  = document.getElementById('bLabel').value.trim() || activeType;
-    const start  = document.getElementById('bStart').value;
-    const end    = document.getElementById('bEnd').value;
-    const taskId = document.getElementById('bTaskLink').value || null;
-    const css    = Sched.getBlockTypes().find(t=>t.id===activeType)?.css || 'sb-other';
-
-    Sched.addBlock(dk, { label, type:activeType, css, start, end, taskId, done:false });
+    const label   = document.getElementById('bLabel').value.trim()||_type;
+    const start   = document.getElementById('bStart').value;
+    const end     = document.getElementById('bEnd').value;
+    const taskId  = document.getElementById('bTaskLink').value||null;
+    const storedTz= document.getElementById('bTz')?.value||Sched.getLocalTz();
+    const css     = Sched.getBlockTypes().find(t=>t.id===_type)?.css||'sb-other';
+    Sched.addBlock(_dk,{label,type:_type,css,start,end,taskId,storedTz,done:false});
     close();
   }
 
-  return { open, close, bdClick, save };
+  return {open,close,bdClick,save};
 })();
 
 
 // ══════════════════════════════════════════════════════════
-// EDIT BLOCK MODAL — edit / move / delete existing block
+// EDIT BLOCK MODAL — edit / move / delete
 // ══════════════════════════════════════════════════════════
 const EditBlockModal = (() => {
-  let currentDk = null, currentBi = null;
-  let activeType = 'study';
+  let _dk=null, _bi=null, _type='study';
+
+  function setType(t) { _type=t; renderTypeGrid('ebTypeGrid',t,setType); }
 
   function open(dk, bi) {
-    currentDk = dk; currentBi = bi;
-    const block = Store.schedule[dk]?.[bi];
-    if (!block) return;
-
-    activeType = block.type || 'study';
-
-    document.getElementById('ebLabel').value  = block.label || '';
-    document.getElementById('ebStart').value  = block.start || '';
-    document.getElementById('ebEnd').value    = block.end   || '';
-    document.getElementById('ebDate').value   = dk;
-
-    renderTypeGrid('ebTypeGrid', activeType, t => { activeType=t; renderTypeGrid('ebTypeGrid',t,arguments.callee); });
-    populateTaskSelect('ebTaskLink', block.taskId || null);
-
+    _dk=dk; _bi=bi;
+    const block=Store.schedule[dk]?.[bi];
+    if(!block) return;
+    _type=block.type||'study';
+    document.getElementById('ebLabel').value=block.label||'';
+    document.getElementById('ebStart').value=block.start||'';
+    document.getElementById('ebEnd').value=block.end||'';
+    document.getElementById('ebDate').value=dk;
+    renderTypeGrid('ebTypeGrid',_type,setType);
+    populateTaskSelect('ebTaskLink',block.taskId||null);
+    buildTzSelect('ebTz');
+    const tzSel=document.getElementById('ebTz');
+    if(tzSel) tzSel.value=block.storedTz||Sched.getLocalTz();
     document.getElementById('editBlockBackdrop').classList.add('open');
-    setTimeout(()=>document.getElementById('ebLabel').focus(), 40);
+    setTimeout(()=>document.getElementById('ebLabel').focus(),40);
   }
 
   function close() { document.getElementById('editBlockBackdrop').classList.remove('open'); }
-  function bdClick(e) { if (e.target.id==='editBlockBackdrop') close(); }
+  function bdClick(e) { if(e.target.id==='editBlockBackdrop') close(); }
 
   function save() {
-    const label  = document.getElementById('ebLabel').value.trim();
-    const start  = document.getElementById('ebStart').value;
-    const end    = document.getElementById('ebEnd').value;
-    const newDk  = document.getElementById('ebDate').value;
-    const taskId = document.getElementById('ebTaskLink').value || null;
-    const css    = Sched.getBlockTypes().find(t=>t.id===activeType)?.css || 'sb-other';
-
-    const block = {
-      ...Store.schedule[currentDk]?.[currentBi],
-      label, type:activeType, css, start, end, taskId,
-    };
-
-    if (newDk !== currentDk) {
-      // Moving to different day
-      Sched.removeBlock(currentDk, currentBi);
-      Sched.addBlock(newDk, block);
-    } else {
-      Sched.updateBlock(currentDk, currentBi, block);
-    }
+    const label   = document.getElementById('ebLabel').value.trim();
+    const start   = document.getElementById('ebStart').value;
+    const end     = document.getElementById('ebEnd').value;
+    const newDk   = document.getElementById('ebDate').value;
+    const taskId  = document.getElementById('ebTaskLink').value||null;
+    const storedTz= document.getElementById('ebTz')?.value||Sched.getLocalTz();
+    const css     = Sched.getBlockTypes().find(t=>t.id===_type)?.css||'sb-other';
+    const orig    = Store.schedule[_dk]?.[_bi]||{};
+    const block   = {...orig,label,type:_type,css,start,end,taskId,storedTz};
+    if(newDk!==_dk){Sched.removeBlock(_dk,_bi);Sched.addBlock(newDk,block);}
+    else Sched.updateBlock(_dk,_bi,block);
     close();
   }
 
-  function del() {
-    Sched.removeBlock(currentDk, currentBi);
-    close();
-  }
+  function del() { Sched.removeBlock(_dk,_bi); close(); }
 
-  return { open, close, bdClick, save, del };
+  return {open,close,bdClick,save,del};
 })();
 
 
 // ══════════════════════════════════════════════════════════
-// SHARED HELPERS for block modals
+// SHARED HELPERS
 // ══════════════════════════════════════════════════════════
 function renderTypeGrid(gridId, activeId, onPick) {
-  const grid = document.getElementById(gridId);
-  if (!grid) return;
-  grid.innerHTML = Sched.getBlockTypes().map(t =>
-    `<button class="btype-btn ${t.css}${t.id===activeId?' sel':''}" onclick="(${onPick.toString()})('${t.id}')">${t.label}</button>`
-  ).join('');
-}
-
-// Re-render with closure approach (simpler)
-function renderTypeGridSimple(gridId, activeId, onPickFn) {
-  const grid = document.getElementById(gridId);
-  if (!grid) return;
-  grid.innerHTML = Sched.getBlockTypes().map(t =>
+  const grid=document.getElementById(gridId);
+  if(!grid) return;
+  grid.innerHTML=Sched.getBlockTypes().map(t=>
     `<button class="btype-btn ${t.css}${t.id===activeId?' sel':''}" data-t="${t.id}">${t.label}</button>`
   ).join('');
-  grid.querySelectorAll('.btype-btn').forEach(btn => {
-    btn.addEventListener('click', () => onPickFn(btn.dataset.t));
+  grid.querySelectorAll('.btype-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>onPick(btn.dataset.t));
   });
 }
 
-// Override block modals to use closure-based approach
-(function() {
-  // Block modal type state
-  let bmType = 'study';
-  BlockModal._setType = t => {
-    bmType = t;
-    renderTypeGridSimple('btypeGrid', t, BlockModal._setType);
-  };
-  const origBMOpen = BlockModal.open.bind(BlockModal);
-  BlockModal.open = function(dk, h, q) {
-    origBMOpen(dk, h, q);
-    bmType = 'study';
-    renderTypeGridSimple('btypeGrid', bmType, BlockModal._setType);
-  };
-  const origBMSave = BlockModal.save.bind(BlockModal);
-  BlockModal.save = function() {
-    const label  = document.getElementById('bLabel').value.trim() || bmType;
-    const start  = document.getElementById('bStart').value;
-    const end    = document.getElementById('bEnd').value;
-    const taskId = document.getElementById('bTaskLink').value || null;
-    const css    = Sched.getBlockTypes().find(t=>t.id===bmType)?.css || 'sb-other';
-    const dk     = BlockModal._dk;
-    Sched.addBlock(dk, { label, type:bmType, css, start, end, taskId, done:false });
-    BlockModal.close();
-  };
-
-  // Store dk in BlockModal
-  const _origOpen = BlockModal.open;
-  BlockModal.open = function(dk, h, q) {
-    BlockModal._dk = dk;
-    document.getElementById('bLabel').value = '';
-    const startMins = h*60 + q*15;
-    const endMins   = startMins + 60;
-    document.getElementById('bStart').value = `${String(Math.floor(startMins/60)).padStart(2,'0')}:${String(startMins%60).padStart(2,'0')}`;
-    document.getElementById('bEnd').value   = `${String(Math.floor(endMins/60)%24).padStart(2,'0')}:${String(endMins%60).padStart(2,'0')}`;
-    const d = new Date(dk+'T00:00:00');
-    document.getElementById('blockModalTitle').textContent =
-      `Add block · ${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
-    bmType = 'study';
-    renderTypeGridSimple('btypeGrid', bmType, BlockModal._setType);
-    populateTaskSelect('bTaskLink', null);
-    document.getElementById('blockBackdrop').classList.add('open');
-    setTimeout(()=>document.getElementById('bLabel').focus(), 40);
-  };
-
-  // Edit modal type state
-  let emType = 'study';
-  EditBlockModal._setType = t => {
-    emType = t;
-    renderTypeGridSimple('ebTypeGrid', t, EditBlockModal._setType);
-  };
-  const origEMOpen = EditBlockModal.open.bind(EditBlockModal);
-  EditBlockModal.open = function(dk, bi) {
-    EditBlockModal._dk = dk;
-    EditBlockModal._bi = bi;
-    const block = Store.schedule[dk]?.[bi];
-    if (!block) return;
-    emType = block.type || 'study';
-    document.getElementById('ebLabel').value = block.label || '';
-    document.getElementById('ebStart').value = block.start || '';
-    document.getElementById('ebEnd').value   = block.end   || '';
-    document.getElementById('ebDate').value  = dk;
-    renderTypeGridSimple('ebTypeGrid', emType, EditBlockModal._setType);
-    populateTaskSelect('ebTaskLink', block.taskId || null);
-    document.getElementById('editBlockBackdrop').classList.add('open');
-    setTimeout(()=>document.getElementById('ebLabel').focus(), 40);
-  };
-  EditBlockModal.save = function() {
-    const dk     = EditBlockModal._dk;
-    const bi     = EditBlockModal._bi;
-    const label  = document.getElementById('ebLabel').value.trim();
-    const start  = document.getElementById('ebStart').value;
-    const end    = document.getElementById('ebEnd').value;
-    const newDk  = document.getElementById('ebDate').value;
-    const taskId = document.getElementById('ebTaskLink').value || null;
-    const css    = Sched.getBlockTypes().find(t=>t.id===emType)?.css || 'sb-other';
-    const block  = { ...(Store.schedule[dk]?.[bi]||{}), label, type:emType, css, start, end, taskId };
-    if (newDk !== dk) {
-      Sched.removeBlock(dk, bi);
-      Sched.addBlock(newDk, block);
-    } else {
-      Sched.updateBlock(dk, bi, block);
-    }
-    EditBlockModal.close();
-  };
-  EditBlockModal.del = function() {
-    Sched.removeBlock(EditBlockModal._dk, EditBlockModal._bi);
-    EditBlockModal.close();
-  };
-})();
-
 function populateTaskSelect(selectId, selectedId) {
-  const sel = document.getElementById(selectId);
-  if (!sel) return;
-  const active = Store.tasks.filter(t => t.status !== 'Done');
-  sel.innerHTML = `<option value="">— None —</option>` +
-    active.map(t => `<option value="${t.id}"${t.id===selectedId?' selected':''}>${Store.esc(t.name.slice(0,50))}</option>`).join('');
+  const sel=document.getElementById(selectId);
+  if(!sel) return;
+  const active=Store.tasks.filter(t=>t.status!=='Done');
+  sel.innerHTML=`<option value="">— None —</option>`+
+    active.map(t=>`<option value="${t.id}"${t.id===selectedId?' selected':''}>${Store.esc(t.name.slice(0,55))}</option>`).join('');
+}
+
+function buildTzSelect(selectId) {
+  const sel=document.getElementById(selectId);
+  if(!sel) return;
+  const tzList=[
+    'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+    'America/Phoenix','America/Anchorage','Pacific/Honolulu',
+    'Europe/London','Europe/Paris','Europe/Berlin','Europe/Moscow',
+    'Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Asia/Dubai',
+    'Australia/Sydney','Pacific/Auckland','UTC'
+  ];
+  const local=Sched.getLocalTz();
+  const all=[local,...tzList.filter(t=>t!==local)];
+  sel.innerHTML=all.map(tz=>`<option value="${tz}">${tz===local?tz+' (your timezone)':tz}</option>`).join('');
+  sel.value=local;
 }

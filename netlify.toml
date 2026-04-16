@@ -1,6 +1,5 @@
 [build]
   publish = "."
-  command = "node apply-update.js"
   functions = "netlify/functions"
 
 [[redirects]]

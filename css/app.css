@@ -256,7 +256,7 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
 }
 
 /* Clickable slot rows */
-.sched-slots{margin-left:68px;position:relative;min-height:100px}
+
 .sched-slot{
   border-bottom:1px solid var(--b0);
   height:28px; /* each 15-min slot */
@@ -318,7 +318,7 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
 .sb-study  {background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.28);color:#5b21b6}
 .sb-ec     {background:rgba(22,163,74,.14);border-color:rgba(22,163,74,.28);color:#14532d}
 .sb-free   {background:rgba(107,114,128,.14);border-color:rgba(107,114,128,.28);color:#374151}
-.sb-meal   {background:rgba(8,145,178,.14);border-color:rgba(8,145,178,.28);color:#164e63}
+.sb-meal   {background:rgba(234,88,12,.14);border-color:rgba(234,88,12,.28);color:#9a3412}
 .sb-sleep  {background:rgba(107,114,128,.14);border-color:rgba(107,114,128,.28);color:#374151}
 .sb-work   {background:rgba(190,24,93,.14);border-color:rgba(190,24,93,.28);color:#831843}
 .sb-other  {background:var(--surf2);border-color:var(--b2);color:var(--tx2)}
@@ -328,7 +328,7 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
   .sb-study  {background:rgba(124,58,237,.22);border-color:rgba(124,58,237,.4);color:#c4b5fd}
   .sb-ec     {background:rgba(22,163,74,.22);border-color:rgba(22,163,74,.4);color:#86efac}
   .sb-free   {background:rgba(107,114,128,.22);border-color:rgba(107,114,128,.4);color:#d1d5db}
-  .sb-meal   {background:rgba(8,145,178,.22);border-color:rgba(8,145,178,.4);color:#67e8f9}
+  .sb-meal   {background:rgba(234,88,12,.22);border-color:rgba(234,88,12,.4);color:#fdba74}
   .sb-sleep  {background:rgba(107,114,128,.22);border-color:rgba(107,114,128,.4);color:#d1d5db}
   .sb-work   {background:rgba(190,24,93,.22);border-color:rgba(190,24,93,.4);color:#f9a8d4}
 }
@@ -347,7 +347,7 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
 .btype-btn.sel.sb-study{background:rgba(124,58,237,.1);border-color:#7c3aed;color:#5b21b6}
 .btype-btn.sel.sb-ec{background:rgba(22,163,74,.1);border-color:var(--ec);color:#14532d}
 .btype-btn.sel.sb-free{background:rgba(107,114,128,.1);border-color:#6b7280;color:#374151}
-.btype-btn.sel.sb-meal{background:rgba(8,145,178,.1);border-color:#0891b2;color:#164e63}
+.btype-btn.sel.sb-meal{background:rgba(234,88,12,.1);border-color:#ea580c;color:#9a3412}
 .btype-btn.sel.sb-sleep{background:rgba(107,114,128,.1);border-color:#6b7280;color:#374151}
 .btype-btn.sel.sb-work{background:rgba(190,24,93,.1);border-color:#be185d;color:#831843}
 .btype-btn.sel.sb-other{background:var(--surf3);border-color:var(--b3);color:var(--tx)}
@@ -552,3 +552,52 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
 }
 .empty{text-align:center;padding:28px 0;font-size:13px;color:var(--tx4)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── Meeting block (teal) ────────────────────────────── */
+.sb-meeting{background:rgba(13,148,136,.14);border-color:rgba(13,148,136,.28);color:#0f766e}
+@media(prefers-color-scheme:dark){
+  .sb-meeting{background:rgba(13,148,136,.22);border-color:rgba(13,148,136,.4);color:#5eead4}
+}
+.btype-btn.sel.sb-meeting{background:rgba(13,148,136,.1);border-color:#0d9488;color:#0f766e}
+
+/* ── Meal block orange ───────────────────────────────── */
+.sb-meal{background:rgba(234,88,12,.14);border-color:rgba(234,88,12,.28);color:#9a3412}
+@media(prefers-color-scheme:dark){
+  .sb-meal{background:rgba(234,88,12,.22);border-color:rgba(234,88,12,.4);color:#fdba74}
+}
+.btype-btn.sel.sb-meal{background:rgba(234,88,12,.1);border-color:#ea580c;color:#9a3412}
+
+/* ── Now line ────────────────────────────────────────── */
+.now-line{
+  position:absolute;left:0;right:0;height:2px;
+  background:var(--red);z-index:4;pointer-events:none;
+}
+.now-line::before{
+  content:'';position:absolute;left:-4px;top:-4px;
+  width:10px;height:10px;border-radius:50%;background:var(--red);
+}
+
+/* ── Schedule box independent scroll ────────────────── */
+.sched-wrap{overflow:hidden;position:relative}
+.sched-axis{position:absolute;top:0;left:0;bottom:0;width:68px;z-index:2;pointer-events:none}
+.sched-scroller{
+  position:absolute;top:0;left:68px;right:0;bottom:0;
+  overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:var(--b2) transparent;
+}
+.sched-scroller::-webkit-scrollbar{width:4px}
+.sched-scroller::-webkit-scrollbar-track{background:transparent}
+.sched-scroller::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+
+/* ── Block tz label ──────────────────────────────────── */
+.sched-block-tz{font-size:9px;font-family:var(--mono);opacity:.6;margin-top:1px;white-space:nowrap}
+
+/* ── Timezone select ─────────────────────────────────── */
+.tz-select{
+  width:100%;padding:9px 12px;
+  border:1px solid var(--b2);border-radius:var(--r-sm);
+  background:var(--surf2);color:var(--tx);font-size:13px;outline:none;cursor:pointer;
+  transition:border-color var(--t);
+}
+.tz-select:focus{border-color:var(--blue)}
