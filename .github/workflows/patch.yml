@@ -1,6 +1,8 @@
 name: Apply patch
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - 'patch.js'
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -15,4 +17,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || git commit -m "Apply patch" && git push
+          git diff --staged --quiet || (git commit -m "Apply patch" && git push)
