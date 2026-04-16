@@ -1,149 +1,124 @@
-// ═══════════════════════════════════════════════════════
-// STORE — all state, localStorage, helpers
-// ═══════════════════════════════════════════════════════
-
+// ══════════════════════════════════════════════════════════
+// STORE — all state, persistence, helpers
+// ══════════════════════════════════════════════════════════
 const Store = (() => {
-  const KEY = k => `planner_${k}`;
-  const get = k => { try { return JSON.parse(localStorage.getItem(KEY(k))); } catch { return null; } };
-  const set = (k,v) => { try { localStorage.setItem(KEY(k), JSON.stringify(v)); } catch {} };
+  const K = k => `pl_${k}`;
+  const rd = k => { try { return JSON.parse(localStorage.getItem(K(k))); } catch { return null; } };
+  const wr = (k,v) => { try { localStorage.setItem(K(k), JSON.stringify(v)); } catch {} };
 
-  // State
-  let tasks     = get('tasks')    || [];
-  let schedule  = get('schedule') || {};
-  let focusMap  = get('focus')    || {};
+  let tasks    = rd('tasks')    || [];
+  let schedule = rd('schedule') || {};
+  let focusMap = rd('focus')    || {};
 
-  // Undo/redo
-  const undoStack = [];
-  const redoStack = [];
+  const undo_ = [], redo_ = [];
 
   function snapshot() {
-    undoStack.push(JSON.stringify(tasks));
-    if (undoStack.length > 60) undoStack.shift();
-    redoStack.length = 0;
+    undo_.push(JSON.stringify(tasks));
+    if (undo_.length > 60) undo_.shift();
+    redo_.length = 0;
   }
-
   function undo() {
-    if (!undoStack.length) return;
-    redoStack.push(JSON.stringify(tasks));
-    tasks = JSON.parse(undoStack.pop());
-    persist();
-    App.refresh();
-    toast('Undone');
+    if (!undo_.length) return;
+    redo_.push(JSON.stringify(tasks));
+    tasks = JSON.parse(undo_.pop());
+    persist(); App.refresh(); toast('Undone');
   }
-
   function redo() {
-    if (!redoStack.length) return;
-    undoStack.push(JSON.stringify(tasks));
-    tasks = JSON.parse(redoStack.pop());
-    persist();
-    App.refresh();
-    toast('Redone');
+    if (!redo_.length) return;
+    undo_.push(JSON.stringify(tasks));
+    tasks = JSON.parse(redo_.pop());
+    persist(); App.refresh(); toast('Redone');
   }
 
   function persist() {
-    set('tasks', tasks);
-    set('schedule', schedule);
-    set('focus', focusMap);
+    wr('tasks', tasks);
+    wr('schedule', schedule);
+    wr('focus', focusMap);
   }
-
   function saveFocus() {
     focusMap[todayStr()] = document.getElementById('focusInput').value;
-    set('focus', focusMap);
+    wr('focus', focusMap);
   }
-
   function loadFocus() {
-    document.getElementById('focusInput').value = focusMap[todayStr()] || '';
+    const el = document.getElementById('focusInput');
+    if (el) el.value = focusMap[todayStr()] || '';
   }
 
-  // ── Dates ──────────────────────────────────────────────
-  const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
-  const toStr = d => d.toISOString().slice(0,10);
-  const todayStr = () => toStr(today());
+  // ── Dates ─────────────────────────────────────────────
+  const today   = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
+  const toStr   = d => d.toISOString().slice(0,10);
+  const todayStr= () => toStr(today());
 
   function daysUntil(str) {
     if (!str) return null;
     return Math.round((new Date(str+'T00:00:00') - today()) / 86400000);
   }
-
   function fmtDate(str) {
     if (!str) return '';
-    return new Date(str+'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    return new Date(str+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
   }
-
-  function weekDays(offset = 0) {
+  function weekDays(offset=0) {
     const s = today();
-    s.setDate(s.getDate() - s.getDay() + offset * 7);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(s); d.setDate(s.getDate() + i); return d;
-    });
+    s.setDate(s.getDate() - s.getDay() + offset*7);
+    return Array.from({length:7},(_,i)=>{ const d=new Date(s); d.setDate(s.getDate()+i); return d; });
   }
 
-  // ── Due chip ───────────────────────────────────────────
+  // ── Due chip ──────────────────────────────────────────
   function duePill(str) {
     const n = daysUntil(str);
-    if (n === null) return '';
-    if (n < 0)  return `<span class="due-chip due-overdue">Overdue</span>`;
-    if (n === 0) return `<span class="due-chip due-today">Today</span>`;
-    if (n === 1) return `<span class="due-chip due-tmrw">Tomorrow</span>`;
-    if (n <= 5)  return `<span class="due-chip due-soon">In ${n} days</span>`;
-    return `<span class="due-chip due-ok">${fmtDate(str)}</span>`;
+    if (n===null) return '';
+    if (n<0)  return `<span class="due-chip d-over">Overdue</span>`;
+    if (n===0) return `<span class="due-chip d-today">Today</span>`;
+    if (n===1) return `<span class="due-chip d-tmrw">Tomorrow</span>`;
+    if (n<=5) return `<span class="due-chip d-soon">In ${n}d</span>`;
+    return `<span class="due-chip d-ok">${fmtDate(str)}</span>`;
   }
 
-  // ── Class chip ─────────────────────────────────────────
-  const CLASS_CSS = {
-    'AP Language':          'cc-apl',
-    'AP Biology':           'cc-bio',
-    'AP US History':        'cc-hist',
-    'Honors Spanish IV':    'cc-spa',
-    'Precalculus':          'cc-pre',
-    'Congressional Debate': 'cc-deb',
-    'Harvard Pre-College':  'cc-hpc',
+  // ── Class chip ────────────────────────────────────────
+  const CLS = {
+    'AP Language':'cc-apl','AP Biology':'cc-bio','AP US History':'cc-hist',
+    'Honors Spanish IV':'cc-spa','Precalculus':'cc-pre',
+    'Congressional Debate':'cc-deb','Harvard Pre-College':'cc-hpc',
   };
-  function classPill(cls) {
+  function clsPill(cls) {
     if (!cls) return '';
-    const c = CLASS_CSS[cls] || '';
-    return `<span class="class-chip ${c}">${esc(cls)}</span>`;
+    return `<span class="cls-chip ${CLS[cls]||''}">${esc(cls)}</span>`;
   }
 
-  // ── Guess class ────────────────────────────────────────
-  function guessClass(name = '') {
-    if (/ap lang|english|essay|gatsby|vocab|rhetoric|appreciat|synthesis/i.test(name)) return 'AP Language';
-    if (/bio|gel|meiosis|punnett|dna|mutation|electrophoresis/i.test(name)) return 'AP Biology';
-    if (/apush|history|iran|jefferson|cold war|civil|wwii|korea|vietnam|chapter|period|dbq|saq|leq/i.test(name)) return 'AP US History';
-    if (/spanish|español|talkabroad|bogot/i.test(name)) return 'Honors Spanish IV';
-    if (/precalc|math|rational|polar|ferris|calc|trig|unit\s*\d+\s*(quiz|test|hw)/i.test(name)) return 'Precalculus';
-    if (/debate|congress/i.test(name)) return 'Congressional Debate';
+  // ── Guesses ───────────────────────────────────────────
+  function guessClass(n='') {
+    if (/ap lang|english|essay|gatsby|vocab|rhetoric|appreciat|synthesis/i.test(n)) return 'AP Language';
+    if (/bio|gel|meiosis|punnett|dna|mutation|electrophoresis/i.test(n)) return 'AP Biology';
+    if (/apush|history|iran|jefferson|cold war|civil|wwii|korea|vietnam|dbq|saq|leq|period\s*\d/i.test(n)) return 'AP US History';
+    if (/spanish|español|talkabroad/i.test(n)) return 'Honors Spanish IV';
+    if (/precalc|rational|polar|ferris|calc|trig|unit\s*\d+/i.test(n)) return 'Precalculus';
+    if (/debate|congress/i.test(n)) return 'Congressional Debate';
     return '';
   }
-
-  function guessCategory(name = '') {
-    if (/quiz|test|exam|midterm|final|summative|ap classroom/i.test(name)) return 'test';
-    if (/debate|ec |extracurr|club|sport/i.test(name)) return 'ec';
+  function guessCat(n='') {
+    if (/quiz|test|exam|midterm|final|summative|ap classroom/i.test(n)) return 'test';
+    if (/debate|extracurr|club|sport/i.test(n)) return 'ec';
     return 'hw';
   }
 
-  // ── Esc HTML ───────────────────────────────────────────
   function esc(s) {
     return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ── Toast ──────────────────────────────────────────────
   function toast(msg) {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.style.opacity = '1';
     clearTimeout(el._t);
-    el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+    el._t = setTimeout(()=>{ el.style.opacity='0'; }, 1900);
   }
 
   return {
-    get tasks() { return tasks; },
-    set tasks(v) { tasks = v; },
-    get schedule() { return schedule; },
-    get focusMap() { return focusMap; },
+    get tasks(){return tasks}, set tasks(v){tasks=v},
+    get schedule(){return schedule},
     persist, snapshot, undo, redo,
     saveFocus, loadFocus,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays,
-    duePill, classPill, guessClass, guessCategory, esc, toast,
+    duePill, clsPill, guessClass, guessCat, esc, toast,
   };
 })();
