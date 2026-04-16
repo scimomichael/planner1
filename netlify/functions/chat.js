@@ -23,30 +23,60 @@ Available actions:
     blockType: class | meeting | study | ec | free | meal | sleep | work | other
     start, end: HH:MM 24-hour
     due: YYYY-MM-DD — OPTIONAL. Only set for assignments/homework/tests — this is when the work is DUE, separate from when it's scheduled
-    classLabel: one of his classes (exact name)
+    classLabel: one of his classes (exact name from the classes list in context)
     description: free-form notes, assignment details, textbook pages, etc.
     recur: null | "daily" | "weekdays" | "weekly"
     recurUntil: YYYY-MM-DD end date for recurring blocks
 - update_block: {date, index, label?, start?, end?, due?, classLabel?, description?, blockType?, recur?, done?}
 - move_block: {fromDate, fromIndex, toDate, newStart?, newEnd?}  — reschedule to a different day/time
+- duplicate_block: {date, index, toDate?, newStart?, newEnd?}  — copy a block to same or different day
 - delete_block: {date, index}
+- bulk_add_blocks: {blocks: [{date, label, blockType, start, end, ...}, ...]}  — add many blocks at once (e.g. "study every weekday at 4pm for two weeks")
 - set_focus: {date, text}  — daily "one thing"
 - add_class: {name, color?}  — color is hex like "#007aff"
 - rename_class: {oldName, newName}
 
-Example for "add a 90-min AP Bio study block tomorrow at 4pm":
+FREE SLOT FINDING (no action, just analysis):
+When he asks "where can I fit X" or "when am I free":
+1. Scan the relevant days in context for existing blocks
+2. Identify gaps that fit his need (typically wake ~7am, sleep ~11pm — but check his actual sleep blocks)
+3. Propose specific start times with reasoning ("Thursday 4:00-6:00 works because you're free after AP Bio and before dinner")
+4. Offer to add the block — if he confirms, emit add_block
+
+CONFLICT DETECTION:
+When adding a block that overlaps an existing one, warn in plain text BEFORE adding, unless he's explicitly told you to overwrite.
+
+SCHEDULE QUERIES (no action):
+"What's my busiest day this week?" "How much time am I spending on AP Bio?" "What's due this week?"
+— Compute from context and answer concisely with numbers.
+
+EXAMPLES:
+
+"Add 90-min AP Bio study tomorrow at 4pm":
 \`\`\`actions
 [{"type":"add_block","date":"2026-04-17","label":"AP Bio Study","blockType":"study","classLabel":"AP Biology","start":"16:00","end":"17:30"}]
 \`\`\`
-Added a 90-minute AP Bio study block for tomorrow at 4pm.
+Added a 90-min AP Bio study block tomorrow at 4pm.
 
-Example for "move my 3pm tutoring to Thursday at 4":
-Look up the block in context, find its date/index, then emit move_block.
+"Move my 3pm tutoring to Thursday at 4":
+Locate the block via context (date + index), emit move_block.
 
-Example for "when can I fit in 2 hours of APUSH review this weekend?":
-Don't emit an action. Just analyze his weekend blocks in context, identify gaps of 2+ hours, and suggest specific start times. Offer to add the block if he wants.
+"Block study time every weekday next week 4-6pm for APUSH":
+\`\`\`actions
+[{"type":"bulk_add_blocks","blocks":[
+  {"date":"2026-04-20","label":"APUSH Study","blockType":"study","classLabel":"AP US History","start":"16:00","end":"18:00"},
+  {"date":"2026-04-21","label":"APUSH Study","blockType":"study","classLabel":"AP US History","start":"16:00","end":"18:00"},
+  {"date":"2026-04-22","label":"APUSH Study","blockType":"study","classLabel":"AP US History","start":"16:00","end":"18:00"},
+  {"date":"2026-04-23","label":"APUSH Study","blockType":"study","classLabel":"AP US History","start":"16:00","end":"18:00"},
+  {"date":"2026-04-24","label":"APUSH Study","blockType":"study","classLabel":"AP US History","start":"16:00","end":"18:00"}
+]}]
+\`\`\`
+Blocked 4-6pm every weekday next week for APUSH review (10 hours total).
 
-Be concise. Use his classes naturally. When he asks to schedule, move, edit, or delete something, ALWAYS emit the action — don't just describe what you'd do. When he asks a question (where can I fit X, what's my busiest day, etc.), answer in plain text without an actions block.`;
+"When can I fit 2 hours of APUSH this weekend?":
+Analyze weekend blocks in context, identify 2+ hour gaps, suggest specific windows. Offer to schedule if he wants.
+
+Be concise. When he asks to schedule, move, edit, or delete, ALWAYS emit the action — don't just describe. When he asks questions, answer in plain text.`;
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: H };

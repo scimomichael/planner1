@@ -259,6 +259,49 @@ const AI = (() => {
             }
             break;
           }
+          case 'duplicate_block': {
+            const list = Store.schedule[a.date];
+            if (list && list[a.index]) {
+              const src = list[a.index];
+              const copy = JSON.parse(JSON.stringify(src));
+              copy.done = false;
+              delete copy._recurFrom;
+              delete copy._recurBaseIdx;
+              const targetDate = a.toDate || a.date;
+              if (!Store.schedule[targetDate]) Store.schedule[targetDate] = [];
+              if (a.newStart) copy.start = a.newStart;
+              if (a.newEnd) copy.end = a.newEnd;
+              Store.schedule[targetDate].push(copy);
+              applied++;
+            }
+            break;
+          }
+          case 'bulk_add_blocks': {
+            if (Array.isArray(a.blocks)) {
+              for (const b of a.blocks) {
+                if (!b.date || !b.start) continue;
+                const blockType = b.blockType || b.type || 'study';
+                const css = Sched.getBlockTypes().find(t => t.id === blockType)?.css || 'sb-other';
+                if (!Store.schedule[b.date]) Store.schedule[b.date] = [];
+                Store.schedule[b.date].push({
+                  label: b.label || blockType,
+                  type: blockType,
+                  css,
+                  start: b.start,
+                  end: b.end || b.start,
+                  due: b.due || null,
+                  classLabel: b.classLabel || '',
+                  description: b.description || '',
+                  storedTz: Sched.getLocalTz(),
+                  recur: b.recur || null,
+                  recurUntil: b.recurUntil || null,
+                  done: false,
+                });
+                applied++;
+              }
+            }
+            break;
+          }
         }
       } catch (e) {
         console.error('AI action failed:', a, e);

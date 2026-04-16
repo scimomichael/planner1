@@ -58,9 +58,6 @@
           <span>Stats</span>
         </button>
       </nav>
-
-      <div class="sb-section-hd">Classes</div>
-      <div class="sb-legend" id="sbClassLegend"></div>
     </div>
 
     <div class="sb-foot">
@@ -269,10 +266,44 @@
         <div class="field-label">Description <span class="field-hint">(optional)</span></div>
         <textarea class="field-input field-textarea" id="bDescription" rows="2" placeholder="Details, notes, assignment info..."></textarea>
       </div>
-      <div class="field-group">
-        <div class="field-label">Timezone</div>
-        <select class="field-select" id="bTz"></select>
-      </div>
+
+      <details class="more-options">
+        <summary>More options</summary>
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Priority</div>
+            <select class="field-select" id="bPriority">
+              <option value="">None</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Reminder</div>
+            <select class="field-select" id="bReminder">
+              <option value="">None</option>
+              <option value="5">5 min before</option>
+              <option value="15">15 min before</option>
+              <option value="30">30 min before</option>
+              <option value="60">1 hour before</option>
+              <option value="1440">1 day before</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Location <span class="field-hint">(optional)</span></div>
+          <input class="field-input" id="bLocation" placeholder="Room 205, Zoom, Library, etc.">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Link <span class="field-hint">(optional)</span></div>
+          <input class="field-input" id="bLink" type="url" placeholder="https://...">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Timezone</div>
+          <select class="field-select" id="bTz"></select>
+        </div>
+      </details>
     </div>
     <div class="modal-ft">
       <button class="btn-secondary" onclick="Templates.saveCurrentBlock()">Save as Template</button>
@@ -326,10 +357,64 @@
         <div class="field-label">Description <span class="field-hint">(optional)</span></div>
         <textarea class="field-input field-textarea" id="ebDescription" rows="2" placeholder="Details, notes, assignment info..."></textarea>
       </div>
-      <div class="field-group">
-        <div class="field-label">Timezone</div>
-        <select class="field-select" id="ebTz"></select>
-      </div>
+
+      <details class="more-options">
+        <summary>More options</summary>
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Priority</div>
+            <select class="field-select" id="ebPriority">
+              <option value="">None</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Status</div>
+            <select class="field-select" id="ebStatus">
+              <option value="scheduled">Scheduled</option>
+              <option value="in-progress">In progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <div class="field-label">Reminder</div>
+            <select class="field-select" id="ebReminder">
+              <option value="">None</option>
+              <option value="5">5 min before</option>
+              <option value="15">15 min before</option>
+              <option value="30">30 min before</option>
+              <option value="60">1 hour before</option>
+              <option value="1440">1 day before</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Recurring</div>
+            <select class="field-select" id="ebRecur">
+              <option value="none">Just this one time</option>
+              <option value="daily">Every day</option>
+              <option value="weekdays">Weekdays only</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Location <span class="field-hint">(optional)</span></div>
+          <input class="field-input" id="ebLocation" placeholder="Room 205, Zoom, Library, etc.">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Link <span class="field-hint">(optional)</span></div>
+          <input class="field-input" id="ebLink" type="url" placeholder="https://...">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Timezone</div>
+          <select class="field-select" id="ebTz"></select>
+        </div>
+      </details>
     </div>
     <div class="modal-ft">
       <button class="btn-danger" onclick="EditBlock.del()">Delete</button>
@@ -449,6 +534,47 @@
               <div class="settings-row-sub">Claude chat bubble in bottom-right corner</div>
             </div>
             <label class="toggle"><input type="checkbox" id="sAIEnabled" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Block Display</div>
+        <div class="settings-list">
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Description Snippet</div>
+              <div class="settings-row-sub">Preview of the description inside each block</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sBlockDesc" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Priority Indicator</div>
+              <div class="settings-row-sub">Color dot next to labels with a priority</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sBlockPriority" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Location</div>
+              <div class="settings-row-sub">Location chip inside blocks that have one</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sBlockLocation" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Link Icon</div>
+              <div class="settings-row-sub">Clickable link icon for blocks with URLs</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sBlockLink" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Warn on Conflicts</div>
+              <div class="settings-row-sub">Prompt before saving an overlapping block</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sConflictWarn" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
           </div>
         </div>
       </div>

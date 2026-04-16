@@ -236,25 +236,5 @@ const Classes = (() => {
     ov.classList.add('open');
   }
 
-  // Sidebar class legend (tappable → opens manage modal)
-  function renderLegend() {
-    const box = document.getElementById('sbClassLegend');
-    if (!box) return;
-    const list = Store.getClasses();
-    if (!list.length) {
-      box.innerHTML = `<button class="legend-add" onclick="Classes.open()">＋ Add a class</button>`;
-      return;
-    }
-    box.innerHTML = list.slice(0, 10).map(c => `
-      <div class="legend-row" onclick="Classes.open()" title="Click to manage">
-        <span class="cdot" style="background:${c.color}"></span>${Store.esc(c.name)}
-      </div>
-    `).join('') +
-    `<button class="legend-manage" onclick="Classes.open()">
-       <svg viewBox="0 0 14 14" fill="none" width="10" height="10"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-       Manage classes
-     </button>`;
-  }
-
-  return { open, close, overlayClick, render, addFromForm, populateSelect, refreshAllSelects, renderLegend };
+  return { open, close, overlayClick, render, addFromForm, populateSelect, refreshAllSelects };
 })();

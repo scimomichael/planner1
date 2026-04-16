@@ -1350,3 +1350,110 @@ html[data-theme="dark"] .sb-other   { background: rgba(142,142,147,0.18); border
   #main { padding: 18px 16px; }
   .view-hd h1 { font-size: 26px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TURN 3 — Additional features
+═══════════════════════════════════════════════════════════════════ */
+
+/* More options — collapsible in block modals */
+.more-options {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--sep2);
+}
+.more-options summary {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 6px 0;
+  letter-spacing: -0.005em;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--t-fast);
+  user-select: none;
+}
+.more-options summary::-webkit-details-marker { display: none; }
+.more-options summary::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--t) var(--spring);
+  margin-right: 2px;
+}
+.more-options[open] > summary::before { transform: rotate(45deg); }
+.more-options summary:hover { color: var(--indigo); }
+.more-options[open] { padding-bottom: 4px; }
+.more-options[open] > summary { margin-bottom: 10px; }
+
+/* Block indicators */
+.sched-block-pri {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.6);
+}
+.sched-block-pri.pri-low    { background: var(--green); }
+.sched-block-pri.pri-medium { background: var(--orange); }
+.sched-block-pri.pri-high   { background: var(--red); box-shadow: 0 0 0 1.5px rgba(255,255,255,0.6), 0 0 6px rgba(255,59,48,0.4); }
+
+.sched-block-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  opacity: 0.5;
+  color: inherit;
+  vertical-align: middle;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.sched-block-link:hover { opacity: 1; transform: scale(1.15); }
+.sched-block-link svg { width: 12px; height: 12px; }
+
+.sched-block-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  opacity: 0.72;
+  margin-top: 3px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sched-block-loc svg { width: 9px; height: 10px; flex-shrink: 0; }
+
+.sched-block-status {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  align-self: flex-start;
+  margin-top: 3px;
+  background: rgba(255,255,255,0.55);
+  color: inherit;
+  white-space: nowrap;
+}
+.sched-block-status.status-in-progress { background: var(--blue); color: #fff; }
+.sched-block-status.status-completed   { background: var(--green); color: #fff; }
+.sched-block-status.status-cancelled   { background: var(--gray); color: #fff; opacity: 0.7; }
+
+.sched-block.status-completed { opacity: 0.55; }
+.sched-block.status-completed .sched-block-name { text-decoration: line-through; }
+.sched-block.status-cancelled {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+}
+.sched-block.status-cancelled .sched-block-name { text-decoration: line-through; }
+.sched-block.status-in-progress {
+  box-shadow: var(--elev-3), inset 3px 0 0 var(--blue);
+}
+html[data-theme="dark"] .sched-block-status { background: rgba(0,0,0,0.35); }

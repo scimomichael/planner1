@@ -264,14 +264,26 @@ const Sched = (() => {
         dueHtml = `<div class="sched-block-due ${cls}">Due ${label}</div>`;
       }
       const classPill = b.classLabel ? `<div class="sched-block-cls">${Store.clsPill(b.classLabel)}</div>` : '';
-      const descSnip = b.description
+      const showDesc = !Settings.get || Settings.get('sBlockDesc', true);
+      const descSnip = (b.description && showDesc)
         ? `<div class="sched-block-desc">${Store.esc(b.description.slice(0, 120))}${b.description.length > 120 ? '…' : ''}</div>`
         : '';
       const recurBadge = (b.recur && b.recur !== 'none') || isRecurInstance
         ? `<div class="sched-block-recur" title="Recurring">↻</div>` : '';
+      const showPriority = !Settings.get || Settings.get('sBlockPriority', true);
+      const priDot = (showPriority && b.priority)
+        ? `<span class="sched-block-pri pri-${b.priority}" title="Priority: ${b.priority}"></span>` : '';
+      const showLocation = !Settings.get || Settings.get('sBlockLocation', true);
+      const locChip = (showLocation && b.location)
+        ? `<div class="sched-block-loc" title="${Store.esc(b.location)}"><svg viewBox="0 0 10 12" fill="none"><path d="M5 1a3.5 3.5 0 013.5 3.5c0 2.6-3.5 6.5-3.5 6.5S1.5 7.1 1.5 4.5A3.5 3.5 0 015 1z" stroke="currentColor" stroke-width="1.1" fill="none"/><circle cx="5" cy="4.5" r="1.2" fill="currentColor"/></svg>${Store.esc(b.location)}</div>` : '';
+      const showLink = !Settings.get || Settings.get('sBlockLink', true);
+      const linkChip = (showLink && b.link)
+        ? `<a class="sched-block-link" href="${Store.esc(b.link)}" target="_blank" rel="noopener noreferrer" title="${Store.esc(b.link)}" onclick="event.stopPropagation()"><svg viewBox="0 0 12 12" fill="none"><path d="M5 3h2a3 3 0 010 6H6M7 9H5a3 3 0 010-6h1M4.5 6h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></a>` : '';
+      const statusBadge = (b.status && b.status !== 'scheduled')
+        ? `<div class="sched-block-status status-${b.status}">${b.status.replace('-', ' ')}</div>` : '';
 
       const block = document.createElement('div');
-      block.className = `sched-block ${b.css || 'sb-other'}${b.done ? ' sched-block-done' : ''}`;
+      block.className = `sched-block ${b.css || 'sb-other'}${b.done ? ' sched-block-done' : ''}${b.status ? ' status-' + b.status : ''}`;
       block.style.top = top + 'px';
       block.style.height = height + 'px';
       block.style.left = `calc(${leftPct}% + 4px)`;
@@ -282,11 +294,13 @@ const Sched = (() => {
       block.innerHTML = `
         <div class="sched-block-check${b.done ? ' done' : ''}" data-act="check"></div>
         ${recurBadge}
-        <div class="sched-block-name">${Store.esc(b.label)}</div>
+        <div class="sched-block-name">${priDot}${Store.esc(b.label)}${linkChip}</div>
         ${timeDisp ? `<div class="sched-block-time">${timeDisp}</div>` : ''}
         ${classPill}
+        ${statusBadge}
         ${tzNote}
         ${dueHtml}
+        ${locChip}
         ${descSnip}
         <div class="sched-block-resize" data-act="resize"></div>
       `;
@@ -591,6 +605,10 @@ const BlockModal = (() => {
     document.getElementById('bRecur').value = 'none';
     document.getElementById('bRecurUntil').value = '';
     document.getElementById('bRecurEndGroup').style.display = 'none';
+    const pri = document.getElementById('bPriority'); if (pri) pri.value = '';
+    const rem = document.getElementById('bReminder'); if (rem) rem.value = '';
+    const loc = document.getElementById('bLocation'); if (loc) loc.value = '';
+    const lnk = document.getElementById('bLink'); if (lnk) lnk.value = '';
     renderTypeGrid('bTypeGrid', _type, setType);
     if (typeof Classes !== 'undefined') Classes.populateSelect('bClass', '');
     buildTzSelect('bTz');
@@ -617,15 +635,46 @@ const BlockModal = (() => {
     const storedTz    = document.getElementById('bTz')?.value || Sched.getLocalTz();
     const recur       = document.getElementById('bRecur').value;
     const recurUntil  = recur !== 'none' ? (document.getElementById('bRecurUntil').value || null) : null;
+    const priority    = document.getElementById('bPriority')?.value || '';
+    const reminder    = document.getElementById('bReminder')?.value ? Number(document.getElementById('bReminder').value) : null;
+    const location    = document.getElementById('bLocation')?.value.trim() || '';
+    const link        = document.getElementById('bLink')?.value.trim() || '';
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
+
+    // Conflict detection
+    if (!Settings.get || Settings.get('sConflictWarn', true)) {
+      const conflicts = _findConflicts(_dk, start, end);
+      if (conflicts.length) {
+        const labels = conflicts.map(c => `"${c.label}" (${c.start}–${c.end})`).join(', ');
+        if (!confirm(`This overlaps: ${labels}\n\nAdd anyway?`)) return;
+      }
+    }
+
     Sched.addBlock(_dk, {
       label, type: _type, css, start, end,
       due, classLabel, description, storedTz,
       recur: recur === 'none' ? null : recur,
       recurUntil,
+      priority, reminder, location, link,
+      status: 'scheduled',
       done: false
     });
     close();
+  }
+
+  function _findConflicts(dk, start, end) {
+    const list = Store.schedule[dk] || [];
+    const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+    const sMin = toMin(start);
+    let eMin = toMin(end || start);
+    if (eMin <= sMin) eMin += 24*60;
+    return list.filter(b => {
+      if (!b.start || !b.end) return false;
+      const bsMin = toMin(b.start);
+      let beMin = toMin(b.end);
+      if (beMin <= bsMin) beMin += 24*60;
+      return sMin < beMin && eMin > bsMin;
+    });
   }
 
   return { open, openWithRange, close, overlayClick, save };
@@ -651,6 +700,12 @@ const EditBlock = (() => {
     document.getElementById('ebDate').value = dk;
     document.getElementById('ebDue').value = block.due || '';
     document.getElementById('ebDescription').value = block.description || '';
+    const rec = document.getElementById('ebRecur'); if (rec) rec.value = block.recur || 'none';
+    const pri = document.getElementById('ebPriority'); if (pri) pri.value = block.priority || '';
+    const st  = document.getElementById('ebStatus');   if (st)  st.value  = block.status || 'scheduled';
+    const rem = document.getElementById('ebReminder'); if (rem) rem.value = block.reminder != null ? String(block.reminder) : '';
+    const loc = document.getElementById('ebLocation'); if (loc) loc.value = block.location || '';
+    const lnk = document.getElementById('ebLink');     if (lnk) lnk.value = block.link || '';
     renderTypeGrid('ebTypeGrid', _type, setType);
     if (typeof Classes !== 'undefined') Classes.populateSelect('ebClass', block.classLabel || '');
     buildTzSelect('ebTz');
@@ -672,9 +727,19 @@ const EditBlock = (() => {
     const classLabel  = document.getElementById('ebClass').value || '';
     const description = document.getElementById('ebDescription').value.trim();
     const storedTz    = document.getElementById('ebTz')?.value || Sched.getLocalTz();
+    const recurVal    = document.getElementById('ebRecur')?.value || 'none';
+    const priority    = document.getElementById('ebPriority')?.value || '';
+    const status      = document.getElementById('ebStatus')?.value || 'scheduled';
+    const reminder    = document.getElementById('ebReminder')?.value ? Number(document.getElementById('ebReminder').value) : null;
+    const location    = document.getElementById('ebLocation')?.value.trim() || '';
+    const link        = document.getElementById('ebLink')?.value.trim() || '';
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
     const orig = Store.schedule[_dk]?.[_bi] || {};
-    const block = { ...orig, label, type: _type, css, start, end, due, classLabel, description, storedTz };
+    const block = {
+      ...orig, label, type: _type, css, start, end, due, classLabel, description, storedTz,
+      recur: recurVal === 'none' ? null : recurVal,
+      priority, status, reminder, location, link,
+    };
     if (newDk !== _dk) {
       Sched.removeBlock(_dk, _bi);
       Sched.addBlock(newDk, block);

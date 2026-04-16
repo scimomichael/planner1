@@ -37,8 +37,6 @@ const App = (() => {
       case 'month': Month.render(); break;
       case 'stats': Stats.render(); break;
     }
-    // Sidebar class legend
-    if (typeof Classes !== 'undefined' && Classes.renderLegend) Classes.renderLegend();
   }
 
   function setupKeyboard() {
@@ -109,10 +107,9 @@ const App = (() => {
     Store.loadFocus();
     AI.init();
     Notify.init();
-    // Populate all class selects and render sidebar legend
+    // Populate all class selects on boot
     if (typeof Classes !== 'undefined') {
       Classes.refreshAllSelects();
-      if (Classes.renderLegend) Classes.renderLegend();
     }
     setupKeyboard();
     setInterval(() => {
