@@ -198,15 +198,15 @@ const Sched = (() => {
 
     // Auto-scroll to current time (today only, schedGrid only)
     if (isToday) {
-      requestAnimationFrame(() => {
-        const now  = new Date();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const now = new Date();
         const nowM = now.getHours()*60 + now.getMinutes();
         const adjM = nowM < 120 ? nowM+24*60 : nowM;
         const startM = 5*60;
         const pct  = Math.max(0, (adjM - startM) / (TOTAL_SLOTS * SLOT_MIN));
         const scrollTo = pct * totalH - (scroller.clientHeight / 2);
         scroller.scrollTop = Math.max(0, scrollTo);
-      });
+      }));
     }
   }
 

@@ -236,16 +236,13 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
   border-radius:var(--r-md);
   overflow:hidden;
   position:relative;
+  height:calc(100vh - 320px);
+  min-height:400px;
 }
 .sched-full{/* full width on schedule page */}
 
 /* Time axis column */
-.sched-axis{
-  position:absolute;top:0;left:0;bottom:0;
-  width:68px;border-right:1px solid var(--b0);
-  background:var(--surf2);
-  pointer-events:none;z-index:1;
-}
+
 .sched-axis-label{
   position:absolute;left:0;width:68px;
   padding:0 8px;
@@ -579,7 +576,7 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
 
 /* ── Schedule box independent scroll ────────────────── */
 .sched-wrap{overflow:hidden;position:relative}
-.sched-axis{position:absolute;top:0;left:0;bottom:0;width:68px;z-index:2;pointer-events:none}
+
 .sched-scroller{
   position:absolute;top:0;left:68px;right:0;bottom:0;
   overflow-y:auto;overflow-x:hidden;
@@ -601,3 +598,21 @@ h1{font-size:32px;font-weight:600;letter-spacing:-.6px;line-height:1.15}
   transition:border-color var(--t);
 }
 .tz-select:focus{border-color:var(--blue)}
+
+/* ── Schedule scroll (authoritative) ───────────────────── */
+.sched-wrap{position:relative;overflow:hidden}
+.sched-wrap.sched-full{height:calc(100vh - 220px);min-height:500px}
+.sched-axis{
+  position:absolute;top:0;left:0;bottom:0;width:68px;
+  background:var(--surf2);border-right:1px solid var(--b0);
+  z-index:3;pointer-events:none;overflow:hidden;
+}
+.sched-scroller{
+  position:absolute;top:0;left:68px;right:0;bottom:0;
+  overflow-y:scroll;overflow-x:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:var(--b2) transparent;
+}
+.sched-scroller::-webkit-scrollbar{width:5px}
+.sched-scroller::-webkit-scrollbar-track{background:transparent}
+.sched-scroller::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
