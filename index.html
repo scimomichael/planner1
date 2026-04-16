@@ -6,145 +6,239 @@
 <title>Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div id="root">
 
-  <!-- ══════════ SIDEBAR ══════════ -->
+  <!-- ═════ SIDEBAR ═════ -->
   <aside id="sidebar">
-    <div class="sb-brand">
-      <div class="sb-logo"></div>
-      <span class="sb-name">Planner</span>
-    </div>
+    <div class="sb-top">
+      <div class="sb-brand">
+        <div class="sb-logo">
+          <svg viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="3.5" width="16" height="14" rx="3" fill="white" fill-opacity=".9"/>
+            <path d="M6 1v3M14 1v3M2 8h16" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="7" cy="12" r="1" fill="white"/><circle cx="10" cy="12" r="1" fill="white"/><circle cx="13" cy="12" r="1" fill="white"/>
+          </svg>
+        </div>
+        <span class="sb-name">Planner</span>
+      </div>
 
-    <nav class="sb-nav">
-      <button class="nav-btn active" data-view="today" onclick="App.nav('today')">
-        <svg viewBox="0 0 18 18" fill="none"><rect x="1.5" y="2.5" width="15" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7h15M6 1.5v2M12 1.5v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Today
-      </button>
-      <button class="nav-btn" data-view="schedule" onclick="App.nav('schedule')">
-        <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="currentColor" stroke-width="1.5"/><path d="M9 5v4.5l3 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Schedule
-      </button>
-      <button class="nav-btn" data-view="week" onclick="App.nav('week')">
-        <svg viewBox="0 0 18 18" fill="none"><rect x="1.5" y="2.5" width="15" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7h15M6 1.5v2M12 1.5v2M5 10.5h2M5 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Week
-      </button>
-      <button class="nav-btn" data-view="tasks" onclick="App.nav('tasks')">
-        <svg viewBox="0 0 18 18" fill="none"><path d="M2.5 4.5h13M2.5 9h9M2.5 13.5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        All Tasks
-      </button>
-    </nav>
+      <nav class="sb-nav">
+        <button class="nav-btn active" data-view="today" onclick="App.nav('today')">
+          <div class="nav-ico" style="background:#007aff;color:#fff">
+            <svg viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 5h12M4 1v2M10 1v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <span>Today</span>
+        </button>
+        <button class="nav-btn" data-view="schedule" onclick="App.nav('schedule')">
+          <div class="nav-ico" style="background:#5856d6;color:#fff">
+            <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 4v3.2l2 1.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <span>Schedule</span>
+        </button>
+        <button class="nav-btn" data-view="week" onclick="App.nav('week')">
+          <div class="nav-ico" style="background:#34c759;color:#fff">
+            <svg viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 5h12M4 1v2M10 1v2M3 8h1.5M3 10h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <span>Week</span>
+        </button>
+        <button class="nav-btn" data-view="month" onclick="App.nav('month')">
+          <div class="nav-ico" style="background:#ff2d55;color:#fff">
+            <svg viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 5h12M5 5v8M9 5v8M1 8h12M1 11h12" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+          </div>
+          <span>Month</span>
+        </button>
+        <button class="nav-btn" data-view="tasks" onclick="App.nav('tasks')">
+          <div class="nav-ico" style="background:#ff9500;color:#fff">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h7M2 10h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <span>All Tasks</span>
+        </button>
+        <button class="nav-btn" data-view="stats" onclick="App.nav('stats')">
+          <div class="nav-ico" style="background:#af52de;color:#fff">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M2 12V6M6 12V3M10 12V8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <span>Stats</span>
+        </button>
+      </nav>
 
-    <div class="sb-legend">
-      <p class="legend-hd">Categories</p>
-      <div class="legend-row"><span class="cdot hw"></span>Homework</div>
-      <div class="legend-row"><span class="cdot test"></span>Test / Major</div>
-      <div class="legend-row"><span class="cdot ec"></span>Extracurricular</div>
-      <div class="legend-row"><span class="cdot personal"></span>Personal</div>
+      <div class="sb-section-hd">Categories</div>
+      <div class="sb-legend">
+        <div class="legend-row"><span class="cdot" style="background:#007aff"></span>Homework</div>
+        <div class="legend-row"><span class="cdot" style="background:#ff3b30"></span>Test / Major</div>
+        <div class="legend-row"><span class="cdot" style="background:#34c759"></span>Extracurricular</div>
+        <div class="legend-row"><span class="cdot" style="background:#8e8e93"></span>Personal</div>
+      </div>
     </div>
 
     <div class="sb-foot">
       <div class="sync-row">
-        <span class="sync-dot" id="syncDot"></span>
-        <span id="syncLabel">—</span>
+        <span class="sync-dot ok" id="syncDot"></span>
+        <span id="syncLabel">Ready</span>
       </div>
-      <button class="sync-btn" onclick="Notion.sync()">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M13.5 2C12 .8 10.2.3 8 .3 4 .3 1 3.3 1 7.3M2 14C3.5 15.2 5.3 15.7 7.5 15.7c4 0 7-3 7-7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.5 2v3h-3M2 14v-3h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Sync Notion
-      </button>
+      <div class="sb-actions">
+        <button class="sb-btn" onclick="CmdK.open()">
+          <svg viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Search <span class="kbd">⌘K</span>
+        </button>
+        <button class="sb-btn" onclick="Settings.open()">
+          <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.2" stroke="currentColor" stroke-width="1.3"/><path d="M7 .8v1.5M7 11.7v1.5M.8 7h1.5M11.7 7h1.5M2.5 2.5l1.1 1.1M10.4 10.4l1.1 1.1M11.5 2.5L10.4 3.6M3.6 10.4l-1.1 1.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Settings
+        </button>
+      </div>
     </div>
   </aside>
 
-  <!-- ══════════ MAIN ══════════ -->
+  <!-- ═════ MAIN ═════ -->
   <main id="main">
 
     <!-- TODAY -->
     <div class="view active" id="view-today">
       <div class="view-hd">
-        <div class="view-hd-left">
-          <h1 id="todayH1">Today</h1>
+        <div>
+          <h1 id="todayTitle">Today</h1>
           <p class="view-sub" id="todayDate"></p>
         </div>
-        <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+        <div class="view-hd-right">
+          <button class="btn-secondary" onclick="QuickAdd.open()">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Quick Add
+          </button>
+          <button class="btn-add" onclick="TaskModal.open()">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            New Task
+          </button>
+        </div>
       </div>
-      <div class="focus-bar">
-        <span class="focus-lbl">Focus</span>
-        <input id="focusInput" class="focus-in" placeholder="What's the one thing you must accomplish today?" oninput="Store.saveFocus()">
+
+      <div class="focus-bar" id="focusBar">
+        <div class="focus-icon">
+          <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.5" fill="rgba(255,255,255,.8)"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1 1M10.2 10.2l1 1M2.8 11.2l1-1M10.2 3.8l1-1" stroke="rgba(255,255,255,.5)" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <input id="focusInput" class="focus-input" placeholder="What's the one thing you must get done today?" oninput="Store.saveFocus()">
       </div>
-      <div class="today-layout">
-        <div class="today-sched">
+
+      <div class="today-grid">
+        <div class="today-schedule-col">
           <div class="panel-hd">
             <h2>Schedule</h2>
             <div class="day-nav">
-              <button onclick="Sched.shift(-1)">‹</button>
-              <span id="schedLabel"></span>
-              <button onclick="Sched.shift(1)">›</button>
+              <button class="day-nav-btn" onclick="Sched.shift(-1)" title="Previous day">
+                <svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <span class="day-nav-label" id="schedLabel"></span>
+              <button class="day-nav-btn" onclick="Sched.shift(1)" title="Next day">
+                <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button class="day-nav-btn" onclick="Sched.today()" title="Jump to today" style="margin-left:4px;width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button>
             </div>
           </div>
-          <div id="schedGrid" class="sched-wrap"></div>
+          <div class="sched-box" id="schedGrid"></div>
         </div>
-        <div class="today-sidebar">
+
+        <div class="today-tasks-col" id="dueSoonCol">
           <div class="panel-hd">
-            <h2>Due soon</h2>
-            <button class="btn-link" onclick="App.nav('tasks')">All →</button>
+            <h2>Due Soon</h2>
+            <button class="btn-text-link" onclick="App.nav('tasks')">All →</button>
           </div>
           <div id="dueSoon"></div>
         </div>
       </div>
     </div>
 
-    <!-- SCHEDULE FULL -->
+    <!-- SCHEDULE (full) -->
     <div class="view" id="view-schedule">
       <div class="view-hd">
-        <div class="view-hd-left">
+        <div>
           <h1>Schedule</h1>
-          <p class="view-sub" id="schedFullSub"></p>
+          <p class="view-sub" id="schedFullLabel"></p>
         </div>
         <div class="view-hd-right">
-          <button class="btn-icon" onclick="Sched.shiftFull(-1)">‹</button>
-          <button class="btn-icon" onclick="Sched.shiftFull(1)">›</button>
-          <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+          <button class="btn-icon-pill" onclick="Sched.shiftFull(-1)">
+            <svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-icon-pill" onclick="Sched.todayFull()" title="Today" style="width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button>
+          <button class="btn-icon-pill" onclick="Sched.shiftFull(1)">
+            <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-secondary" onclick="Templates.open()">Templates</button>
+          <button class="btn-add" onclick="TaskModal.open()">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            New Task
+          </button>
         </div>
       </div>
-      <div id="schedFullGrid" class="sched-wrap sched-full"></div>
+      <div class="sched-box sched-box-full" id="schedFullGrid"></div>
     </div>
 
     <!-- WEEK -->
     <div class="view" id="view-week">
       <div class="view-hd">
-        <div class="view-hd-left">
+        <div>
           <h1>Week</h1>
-          <p class="view-sub" id="weekSub"></p>
+          <p class="view-sub" id="weekLabel"></p>
         </div>
         <div class="view-hd-right">
-          <button class="btn-icon" onclick="Week.shift(-1)">‹</button>
-          <button class="btn-icon" onclick="Week.shift(1)">›</button>
-          <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+          <button class="btn-icon-pill" onclick="Week.shift(-1)">
+            <svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-icon-pill" onclick="Week.today()" title="This week" style="width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button>
+          <button class="btn-icon-pill" onclick="Week.shift(1)">
+            <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-add" onclick="TaskModal.open()">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            New Task
+          </button>
         </div>
       </div>
       <div id="weekGrid" class="week-grid"></div>
     </div>
 
+    <!-- MONTH -->
+    <div class="view" id="view-month">
+      <div class="view-hd">
+        <div>
+          <h1>Month</h1>
+          <p class="view-sub" id="monthLabel"></p>
+        </div>
+        <div class="view-hd-right">
+          <button class="btn-icon-pill" onclick="Month.shift(-1)">
+            <svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-icon-pill" onclick="Month.today()" title="This month" style="width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button>
+          <button class="btn-icon-pill" onclick="Month.shift(1)">
+            <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-add" onclick="TaskModal.open()">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            New Task
+          </button>
+        </div>
+      </div>
+      <div id="monthGrid" class="month-grid"></div>
+    </div>
+
     <!-- ALL TASKS -->
     <div class="view" id="view-tasks">
       <div class="view-hd">
-        <div class="view-hd-left">
+        <div>
           <h1>All Tasks</h1>
-          <p class="view-sub">Read from Notion · status changes saved locally</p>
+          <p class="view-sub">All your tasks, organized by status</p>
         </div>
         <div class="view-hd-right">
-          <select class="filter-sel" id="fCat" onchange="Tasks.render()">
-            <option value="">All categories</option>
+          <select class="filter-chip" id="fCat" onchange="Tasks.render()">
+            <option value="">All Categories</option>
             <option value="hw">Homework</option>
             <option value="test">Test / Major</option>
             <option value="ec">Extracurricular</option>
-            <option value="personal">Personal</option>
+            <option value="per">Personal</option>
           </select>
-          <select class="filter-sel" id="fClass" onchange="Tasks.render()">
-            <option value="">All classes</option>
+          <select class="filter-chip" id="fClass" onchange="Tasks.render()">
+            <option value="">All Classes</option>
             <option>AP Language</option>
             <option>AP Biology</option>
             <option>AP US History</option>
@@ -153,37 +247,53 @@
             <option>Congressional Debate</option>
             <option>Harvard Pre-College</option>
           </select>
-          <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+          <button class="btn-add" onclick="TaskModal.open()">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            New Task
+          </button>
         </div>
       </div>
       <div id="kanban" class="kanban"></div>
     </div>
 
+    <!-- STATS -->
+    <div class="view" id="view-stats">
+      <div class="view-hd">
+        <div>
+          <h1>Stats</h1>
+          <p class="view-sub">Your week at a glance</p>
+        </div>
+      </div>
+      <div id="statsContent"></div>
+    </div>
+
   </main>
 </div>
 
-<!-- ══════════ TASK MODAL ══════════ -->
-<div class="backdrop" id="taskBackdrop" onclick="TaskModal.bdClick(event)">
-  <div class="modal" id="taskModal">
+<!-- ═════ TASK MODAL ═════ -->
+<div class="modal-overlay" id="taskOverlay" onclick="TaskModal.overlayClick(event)">
+  <div class="modal">
     <div class="modal-hd">
-      <span id="taskModalTitle">New task</span>
-      <button class="modal-x" onclick="TaskModal.close()">✕</button>
+      <span id="taskModalTitle">New Task</span>
+      <button class="modal-close" onclick="TaskModal.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
     </div>
     <div class="modal-bd">
-      <input class="m-in lg" id="tName" placeholder="Task name" autocomplete="off">
-      <div class="m-field">
-        <div class="m-lbl">Category</div>
-        <div class="cat-picker" id="catPicker">
-          <button class="cat-opt active hw" data-c="hw" onclick="TaskModal.cat('hw')"><span class="cdot hw"></span>Homework</button>
-          <button class="cat-opt test"       data-c="test" onclick="TaskModal.cat('test')"><span class="cdot test"></span>Test / Major</button>
-          <button class="cat-opt ec"         data-c="ec" onclick="TaskModal.cat('ec')"><span class="cdot ec"></span>Extracurricular</button>
-          <button class="cat-opt personal"   data-c="personal" onclick="TaskModal.cat('personal')"><span class="cdot personal"></span>Personal</button>
+      <input class="field-hero" id="tName" placeholder="Task name" autocomplete="off">
+      <div class="field-group">
+        <div class="field-label">Category</div>
+        <div class="seg-group-2col" id="catPicker">
+          <button class="seg-btn active" data-c="hw" onclick="TaskModal.setCat('hw')"><span class="cdot" style="background:#007aff"></span>Homework</button>
+          <button class="seg-btn" data-c="test" onclick="TaskModal.setCat('test')"><span class="cdot" style="background:#ff3b30"></span>Test / Major</button>
+          <button class="seg-btn" data-c="ec" onclick="TaskModal.setCat('ec')"><span class="cdot" style="background:#34c759"></span>EC</button>
+          <button class="seg-btn" data-c="per" onclick="TaskModal.setCat('per')"><span class="cdot" style="background:#8e8e93"></span>Personal</button>
         </div>
       </div>
-      <div class="m-row">
-        <div class="m-field">
-          <div class="m-lbl">Class</div>
-          <select class="m-sel" id="tClass">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Class</div>
+          <select class="field-select" id="tClass">
             <option value="">None</option>
             <option>AP Language</option>
             <option>AP Biology</option>
@@ -195,146 +305,457 @@
             <option>Personal</option>
           </select>
         </div>
-        <div class="m-field">
-          <div class="m-lbl">Status</div>
-          <select class="m-sel" id="tStatus">
+        <div class="field-group">
+          <div class="field-label">Status</div>
+          <select class="field-select" id="tStatus">
             <option>Not started</option>
             <option>In progress</option>
             <option>Done</option>
           </select>
         </div>
       </div>
-      <div class="m-row">
-        <div class="m-field">
-          <div class="m-lbl">Due date</div>
-          <input class="m-in" type="date" id="tDue">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Due Date</div>
+          <input class="field-input" type="date" id="tDue">
         </div>
-        <div class="m-field">
-          <div class="m-lbl">Priority</div>
-          <div class="pri-picker" id="priPicker">
-            <button class="pri-opt" data-p="low"    onclick="TaskModal.pri('low')">Low</button>
-            <button class="pri-opt active medium" data-p="medium" onclick="TaskModal.pri('medium')">Medium</button>
-            <button class="pri-opt" data-p="high"   onclick="TaskModal.pri('high')">High</button>
+        <div class="field-group">
+          <div class="field-label">Priority</div>
+          <div class="seg-group" id="priPicker">
+            <button class="seg-btn" data-p="low" onclick="TaskModal.setPri('low')">Low</button>
+            <button class="seg-btn active" data-p="medium" onclick="TaskModal.setPri('medium')">Medium</button>
+            <button class="seg-btn" data-p="high" onclick="TaskModal.setPri('high')">High</button>
           </div>
         </div>
       </div>
-      <div class="m-row">
-        <div class="m-field">
-          <div class="m-lbl">Est. time</div>
-          <input class="m-in" id="tEst" placeholder="e.g. 2h 30m">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Est. Time</div>
+          <input class="field-input" id="tEst" placeholder="e.g. 2h 30m">
         </div>
-        <div class="m-field">
-          <div class="m-lbl">Schedule on</div>
-          <input class="m-in" type="date" id="tSchedDate" title="Pin to this date on the schedule (separate from due date)">
+        <div class="field-group">
+          <div class="field-label">Schedule On <span class="field-hint">(separate from due)</span></div>
+          <input class="field-input" type="date" id="tSchedDate">
         </div>
       </div>
-      <div class="m-field">
-        <div class="m-lbl">Notes</div>
-        <textarea class="m-in m-ta" id="tNotes" placeholder="Notes or details..." rows="2"></textarea>
+      <div class="field-group">
+        <div class="field-label">Tags <span class="field-hint">(comma separated)</span></div>
+        <input class="field-input" id="tTags" placeholder="e.g. urgent, review, midterm">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Notes</div>
+        <textarea class="field-input field-textarea" id="tNotes" rows="2" placeholder="Any details..."></textarea>
       </div>
     </div>
     <div class="modal-ft">
-      <button class="btn-ghost" onclick="TaskModal.close()">Cancel</button>
-      <button class="btn-primary" onclick="TaskModal.save()">Save</button>
+      <button class="btn-cancel" onclick="TaskModal.close()">Cancel</button>
+      <button class="btn-save" onclick="TaskModal.save()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════ BLOCK MODAL ══════════ -->
-<div class="backdrop" id="blockBackdrop" onclick="BlockModal.bdClick(event)">
-  <div class="modal modal-sm" id="blockModal">
+<!-- ═════ BLOCK ADD MODAL ═════ -->
+<div class="modal-overlay" id="blockOverlay" onclick="BlockModal.overlayClick(event)">
+  <div class="modal modal-sm">
     <div class="modal-hd">
-      <span id="blockModalTitle">Add block</span>
-      <button class="modal-x" onclick="BlockModal.close()">✕</button>
+      <span id="blockModalTitle">Add Block</span>
+      <button class="modal-close" onclick="BlockModal.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
     </div>
     <div class="modal-bd">
-      <input class="m-in lg" id="bLabel" placeholder="Label (e.g. Study for AP Bio exam)" autocomplete="off">
-      <div class="m-row" style="margin-top:12px">
-        <div class="m-field">
-          <div class="m-lbl">Start</div>
-          <input class="m-in" type="time" id="bStart">
+      <input class="field-hero" id="bLabel" placeholder="What are you doing?" autocomplete="off">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Start</div>
+          <input class="field-input" type="time" id="bStart">
         </div>
-        <div class="m-field">
-          <div class="m-lbl">End</div>
-          <input class="m-in" type="time" id="bEnd">
+        <div class="field-group">
+          <div class="field-label">End</div>
+          <input class="field-input" type="time" id="bEnd">
         </div>
       </div>
-      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Type</div>
-        <div class="btype-grid" id="btypeGrid"></div>
+      <div class="field-group">
+        <div class="field-label">Type</div>
+        <div class="block-type-grid" id="bTypeGrid"></div>
       </div>
-      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Link to task (optional)</div>
-        <select class="m-sel" id="bTaskLink">
-          <option value="">— None —</option>
+      <div class="field-group">
+        <div class="field-label">Due Date <span class="field-hint">(reference only — won't move the block)</span></div>
+        <input class="field-input" type="date" id="bDue">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Recurring</div>
+        <select class="field-select" id="bRecur">
+          <option value="none">Just this one time</option>
+          <option value="daily">Every day</option>
+          <option value="weekdays">Weekdays only (Mon–Fri)</option>
+          <option value="weekly">Weekly (same day each week)</option>
         </select>
       </div>
-"      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Timezone</div>
-        <select class="m-sel tz-select" id="bTz"></select>
-      </div>"
+      <div class="field-group" id="bRecurEndGroup" style="display:none">
+        <div class="field-label">Recur until</div>
+        <input class="field-input" type="date" id="bRecurUntil">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Link to Task <span class="field-hint">(optional)</span></div>
+        <select class="field-select" id="bTaskLink"><option value="">— None —</option></select>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Timezone</div>
+        <select class="field-select" id="bTz"></select>
+      </div>
     </div>
     <div class="modal-ft">
-      <button class="btn-ghost" onclick="BlockModal.close()">Cancel</button>
-      <button class="btn-primary" onclick="BlockModal.save()">Add block</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ BLOCK EDIT MODAL ══════════ -->
-<div class="backdrop" id="editBlockBackdrop" onclick="EditBlockModal.bdClick(event)">
-  <div class="modal modal-sm" id="editBlockModal">
-    <div class="modal-hd">
-      <span>Edit block</span>
-      <button class="modal-x" onclick="EditBlockModal.close()">✕</button>
-    </div>
-    <div class="modal-bd">
-      <input class="m-in lg" id="ebLabel" placeholder="Label" autocomplete="off">
-      <div class="m-row" style="margin-top:12px">
-        <div class="m-field">
-          <div class="m-lbl">Start</div>
-          <input class="m-in" type="time" id="ebStart">
-        </div>
-        <div class="m-field">
-          <div class="m-lbl">End</div>
-          <input class="m-in" type="time" id="ebEnd">
-        </div>
-      </div>
-      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Move to date</div>
-        <input class="m-in" type="date" id="ebDate">
-      </div>
-      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Type</div>
-        <div class="btype-grid" id="ebTypeGrid"></div>
-      </div>
-      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Linked task</div>
-        <select class="m-sel" id="ebTaskLink">
-          <option value="">— None —</option>
-        </select>
-      </div>
-"      <div class="m-field" style="margin-top:12px">
-        <div class="m-lbl">Timezone</div>
-        <select class="m-sel tz-select" id="ebTz"></select>
-      </div>"
-    </div>
-    <div class="modal-ft">
-      <button class="btn-delete" onclick="EditBlockModal.del()">Delete</button>
+      <button class="btn-secondary" onclick="Templates.saveCurrentBlock()">Save as Template</button>
       <div style="flex:1"></div>
-      <button class="btn-ghost" onclick="EditBlockModal.close()">Cancel</button>
-      <button class="btn-primary" onclick="EditBlockModal.save()">Save</button>
+      <button class="btn-cancel" onclick="BlockModal.close()">Cancel</button>
+      <button class="btn-save" onclick="BlockModal.save()">Add Block</button>
     </div>
+  </div>
+</div>
+
+<!-- ═════ BLOCK EDIT MODAL ═════ -->
+<div class="modal-overlay" id="editBlockOverlay" onclick="EditBlock.overlayClick(event)">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <span>Edit Block</span>
+      <button class="modal-close" onclick="EditBlock.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd">
+      <input class="field-hero" id="ebLabel" placeholder="Label" autocomplete="off">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Start</div>
+          <input class="field-input" type="time" id="ebStart">
+        </div>
+        <div class="field-group">
+          <div class="field-label">End</div>
+          <input class="field-input" type="time" id="ebEnd">
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Move to Date</div>
+        <input class="field-input" type="date" id="ebDate">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Type</div>
+        <div class="block-type-grid" id="ebTypeGrid"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Due Date <span class="field-hint">(reference only — won't move the block)</span></div>
+        <input class="field-input" type="date" id="ebDue">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Linked Task</div>
+        <select class="field-select" id="ebTaskLink"><option value="">— None —</option></select>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Timezone</div>
+        <select class="field-select" id="ebTz"></select>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-danger" onclick="EditBlock.del()">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn-cancel" onclick="EditBlock.close()">Cancel</button>
+      <button class="btn-save" onclick="EditBlock.save()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ TEMPLATES MODAL ═════ -->
+<div class="modal-overlay" id="templatesOverlay" onclick="Templates.overlayClick(event)">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <span>Block Templates</span>
+      <button class="modal-close" onclick="Templates.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd">
+      <div class="field-hint" style="margin-bottom:8px;text-transform:none;letter-spacing:0;font-size:12px">Click to insert a template at the current cursor time, or in the "Add Block" modal to save the current entry as a template.</div>
+      <div id="templatesList"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-save" onclick="Templates.close()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ QUICK ADD ═════ -->
+<div class="modal-overlay" id="quickAddOverlay" onclick="QuickAdd.overlayClick(event)">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <span>Quick Add</span>
+      <button class="modal-close" onclick="QuickAdd.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd">
+      <div class="field-hint" style="text-transform:none;letter-spacing:0;font-size:12px;margin-bottom:6px">Type naturally — "Study APUSH tomorrow 3-5pm" or "Math quiz Friday"</div>
+      <input class="field-hero" id="qaInput" placeholder="e.g. AP Bio study tomorrow 4-6pm" autocomplete="off">
+      <div id="qaPreview" class="qa-preview"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="QuickAdd.close()">Cancel</button>
+      <button class="btn-save" onclick="QuickAdd.commit()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ COMMAND PALETTE ═════ -->
+<div class="modal-overlay cmdk-overlay" id="cmdkOverlay" onclick="CmdK.overlayClick(event)">
+  <div class="cmdk-modal">
+    <div class="cmdk-search">
+      <svg viewBox="0 0 14 14" fill="none" class="cmdk-icon"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <input id="cmdkInput" placeholder="Search tasks, blocks, run commands…" autocomplete="off" oninput="CmdK.handleInput()" onkeydown="CmdK.handleKey(event)">
+    </div>
+    <div class="cmdk-results" id="cmdkResults"></div>
+  </div>
+</div>
+
+<!-- ═════ SETTINGS ═════ -->
+<div class="modal-overlay" id="settingsOverlay" onclick="Settings.overlayClick(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <span>Settings</span>
+      <button class="modal-close" onclick="Settings.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">Appearance</div>
+        <div class="settings-list">
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Theme</div>
+              <div class="settings-row-sub">Light, dark, or follow system</div>
+            </div>
+            <select class="field-select" id="sTheme" onchange="Settings.save()">
+              <option value="auto">Auto (System)</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show "Now" Line</div>
+              <div class="settings-row-sub">Red line marking the current time</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sNowLine" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Auto-scroll to Now</div>
+              <div class="settings-row-sub">Scroll to current time when opening Today</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sAutoScroll" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Focus Bar</div>
+              <div class="settings-row-sub">Daily focus input at the top of Today</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sFocusBar" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Due Soon Panel</div>
+              <div class="settings-row-sub">Upcoming tasks sidebar on Today view</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sDueSoon" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show Due Date on Blocks</div>
+              <div class="settings-row-sub">Display block's due date on the schedule</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sBlockDue" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Show AI Assistant</div>
+              <div class="settings-row-sub">Claude chat bubble in bottom-right corner</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sAIEnabled" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Schedule</div>
+        <div class="settings-list">
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Start Time</div>
+              <div class="settings-row-sub">Earliest hour shown on schedule</div>
+            </div>
+            <select class="field-select" id="sStartHour" onchange="Settings.save()">
+              <option value="5">5:00 AM</option>
+              <option value="6">6:00 AM</option>
+              <option value="7">7:00 AM</option>
+              <option value="8">8:00 AM</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Slot Height</div>
+              <div class="settings-row-sub">Height of each 15-minute slot</div>
+            </div>
+            <select class="field-select" id="sSlotH" onchange="Settings.save()">
+              <option value="24">Compact</option>
+              <option value="28" selected>Default</option>
+              <option value="34">Comfortable</option>
+              <option value="42">Spacious</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Week starts on</div>
+              <div class="settings-row-sub">First day shown in Week & Month views</div>
+            </div>
+            <select class="field-select" id="sWeekStart" onchange="Settings.save()">
+              <option value="0">Sunday</option>
+              <option value="1">Monday</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Browser Notifications</div>
+              <div class="settings-row-sub">Alert 5 min before blocks start</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sNotify" onchange="Settings.toggleNotify()"><span class="toggle-track"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Class Colors</div>
+        <div class="settings-list" id="classColorList"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Data & Sync</div>
+        <div class="settings-list">
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Cross-Device Sync</div>
+              <div class="settings-row-sub">Sync your data across all browsers</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="sCrossSync" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Timezone</div>
+              <div class="settings-row-sub" id="tzDisplay">Detecting…</div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Force Sync Now</div>
+              <div class="settings-row-sub">Pull the latest data from the server</div>
+            </div>
+            <button class="btn-cancel" onclick="Settings.forcePull()" style="padding:6px 14px;font-size:13px">Pull</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Export Schedule (iCal)</div>
+              <div class="settings-row-sub">Download a .ics file for calendar apps</div>
+            </div>
+            <button class="btn-cancel" onclick="Settings.exportICal()" style="padding:6px 14px;font-size:13px">Export</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Print Today</div>
+              <div class="settings-row-sub">Print-friendly view of today</div>
+            </div>
+            <button class="btn-cancel" onclick="window.print()" style="padding:6px 14px;font-size:13px">Print</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Danger Zone</div>
+        <div class="settings-list">
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Clear All Schedule Data</div>
+              <div class="settings-row-sub">Remove all blocks from all dates</div>
+            </div>
+            <button class="btn-danger-sm" onclick="Settings.clearSchedule()">Clear</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Clear All Tasks</div>
+              <div class="settings-row-sub">Remove all tasks (cannot be undone)</div>
+            </div>
+            <button class="btn-danger-sm" onclick="Settings.clearTasks()">Clear</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Clear Templates</div>
+              <div class="settings-row-sub">Remove all saved block templates</div>
+            </div>
+            <button class="btn-danger-sm" onclick="Settings.clearTemplates()">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-save" onclick="Settings.close()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ AI CHAT BUBBLE ═════ -->
+<button id="aiBubble" onclick="AI.toggle()" title="Ask Claude">
+  <svg viewBox="0 0 28 28" fill="none">
+    <path d="M14 3c-6 0-11 4.5-11 10 0 3 1.5 5.7 4 7.5L5.5 24l4-1.5c1.4.5 3 0.8 4.5 0.8 6 0 11-4.5 11-10S20 3 14 3z" fill="white"/>
+  </svg>
+</button>
+
+<!-- ═════ AI CHAT PANEL ═════ -->
+<div id="aiPanel">
+  <div class="ai-hd">
+    <div class="ai-hd-title">
+      <div class="ai-hd-avatar">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z" fill="rgba(255,255,255,.9)"/><circle cx="7.5" cy="9" r="1" fill="#007aff"/><circle cx="12.5" cy="9" r="1" fill="#007aff"/><path d="M7 12.5c1 1 2 1.5 3 1.5s2-.5 3-1.5" stroke="#007aff" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+      </div>
+      <div>
+        <div class="ai-hd-name">Claude</div>
+        <div class="ai-hd-sub">Your planner assistant</div>
+      </div>
+    </div>
+    <button class="ai-hd-close" onclick="AI.toggle()">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="ai-body" id="aiMessages"></div>
+  <div class="ai-input-row">
+    <textarea id="aiInput" placeholder="Ask about your schedule, add tasks, plan study time…" rows="1" onkeydown="AI.handleKey(event)"></textarea>
+    <button class="ai-send" onclick="AI.send()">
+      <svg viewBox="0 0 18 18" fill="none"><path d="M2 9l14-7-5 16-3-7-6-2z" fill="currentColor"/></svg>
+    </button>
   </div>
 </div>
 
 <div id="toast"></div>
 
 <script src="js/store.js"></script>
-<script src="js/notion.js"></script>
 <script src="js/schedule.js"></script>
 <script src="js/tasks.js"></script>
 <script src="js/week.js"></script>
+<script src="js/month.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/quickadd.js"></script>
+<script src="js/cmdk.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

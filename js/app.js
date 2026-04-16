@@ -1,79 +1,127 @@
-// ══════════════════════════════════════════════════════════
-// APP — routing, init, keyboard shortcuts
-// ══════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════
+// APP — router, init, keyboard shortcuts
+// ═════════════════════════════════════════════════════════
 const App = (() => {
+  let currentView = 'today';
+
   function nav(view) {
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById(`view-${view}`).classList.add('active');
-    document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
-    if (view==='today')    { Sched.render('schedGrid','schedLabel',Sched.getOffset()); Tasks.renderDueSoon(); }
-    if (view==='schedule') Sched.render('schedFullGrid','schedFullSub',Sched.getFullOffset());
-    if (view==='week')     Week.render();
-    if (view==='tasks')    Tasks.render();
+    currentView = view;
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === view);
+    });
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const el = document.getElementById(`view-${view}`);
+    if (el) el.classList.add('active');
+    refresh();
   }
 
   function refresh() {
-    const v = document.querySelector('.view.active')?.id?.replace('view-','');
-    if (v==='today')    { Sched.render('schedGrid','schedLabel',Sched.getOffset()); Tasks.renderDueSoon(); }
-    if (v==='schedule') Sched.render('schedFullGrid','schedFullSub',Sched.getFullOffset());
-    if (v==='week')     Week.render();
-    if (v==='tasks')    Tasks.render();
+    // Today date label
+    const t = document.getElementById('todayDate');
+    if (t) t.textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+    const tt = document.getElementById('todayTitle');
+    if (tt) tt.textContent = 'Today';
+
+    Store.loadFocus();
+
+    switch (currentView) {
+      case 'today':
+        Sched.render('schedGrid', 'schedLabel', Sched.getOffset());
+        Tasks.renderDueSoon();
+        break;
+      case 'schedule':
+        Sched.render('schedFullGrid', 'schedFullLabel', Sched.getFullOffset());
+        break;
+      case 'week':  Week.render();  break;
+      case 'month': Month.render(); break;
+      case 'tasks': Tasks.render(); break;
+      case 'stats': Stats.render(); break;
+    }
   }
 
-  function initHeader() {
-    const d = new Date();
-    document.getElementById('todayH1').textContent  = 'Today';
-    document.getElementById('todayDate').textContent =
-      d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  }
-
-  function seed() {
-    if (Store.tasks.length) return;
-    const add = (name,cat,cls,pri,d,status='Not started',est='') => {
-      const due = new Date(Store.today()); due.setDate(due.getDate()+d);
-      Store.tasks.push({
-        id:'seed_'+Math.random().toString(36).slice(2), fromNotion:false,
-        name, category:cat, classLabel:cls, priority:pri, status,
-        due:Store.toStr(due), est, description:'', schedDate:null,
-      });
-    };
-    add('AP Practice Multiple Choice',       'hw',  'AP Language',        'high',  0,'In progress','1h');
-    add('Read Ch. 4-6 of The Great Gatsby',  'hw',  'AP Language',        'medium',2,'Not started','2h');
-    add('Iran Quiz',                          'test','AP US History',      'high',  3,'Not started','1.5h');
-    add('Rational Functions Quiz',            'test','Precalculus',        'high',  4,'Not started','1h');
-    add('AP Bio lab report',                  'hw',  'AP Biology',         'medium',5,'Not started','2h');
-    add('Spanish TalkAbroad reflection',      'hw',  'Honors Spanish IV',  'low',   7,'Not started','1h');
-    add('Debate – affirmative bill prep',     'ec',  'Congressional Debate','high', 6,'Not started','2h');
-    add('APUSH Ch. 28-29 reading',            'hw',  'AP US History',      'medium',8,'Not started','1.5h');
-    Store.persist();
-  }
-
-  function initKeys() {
+  function setupKeyboard() {
     document.addEventListener('keydown', e => {
-      const typing = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
-      if (e.key==='Escape') {
-        document.querySelectorAll('.backdrop.open').forEach(m=>m.classList.remove('open'));
+      const meta = e.metaKey || e.ctrlKey;
+      const tag = (e.target && e.target.tagName) || '';
+      const inField = ['INPUT','TEXTAREA','SELECT'].includes(tag) || e.target?.isContentEditable;
+
+      if (meta && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (document.getElementById('cmdkOverlay').classList.contains('open')) CmdK.close();
+        else CmdK.open();
         return;
       }
-      if ((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); TaskModal.open(); return; }
-      if (!typing) {
-        if ((e.metaKey||e.ctrlKey) && e.key==='z' && !e.shiftKey) { e.preventDefault(); Store.undo(); return; }
-        if ((e.metaKey||e.ctrlKey) && (e.key==='y'||(e.key==='z'&&e.shiftKey))) { e.preventDefault(); Store.redo(); return; }
-        if ((e.metaKey||e.ctrlKey) && e.key==='ArrowRight') { e.preventDefault(); Sched.shift(1); return; }
-        if ((e.metaKey||e.ctrlKey) && e.key==='ArrowLeft')  { e.preventDefault(); Sched.shift(-1); return; }
+      if (meta && e.key === ',') {
+        e.preventDefault();
+        Settings.open();
+        return;
       }
+      if (meta && e.key === '/') {
+        e.preventDefault();
+        if (Settings.get('sAIEnabled', true)) AI.toggle();
+        return;
+      }
+      if (meta && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        Store.undo();
+        return;
+      }
+      if (meta && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        Store.redo();
+        return;
+      }
+
+      if (inField) return;
+
+      if (e.key === 'Escape') {
+        // Close any open overlays
+        document.querySelectorAll('.modal-overlay.open').forEach(o => o.classList.remove('open'));
+        const p = document.getElementById('aiPanel');
+        if (p && p.classList.contains('open')) p.classList.remove('open');
+        return;
+      }
+      // Single-key view shortcuts
+      if (e.key === 't' || e.key === 'T') { nav('today'); return; }
+      if (e.key === 's' || e.key === 'S') { nav('schedule'); return; }
+      if (e.key === 'w' || e.key === 'W') { nav('week'); return; }
+      if (e.key === 'm' || e.key === 'M') { nav('month'); return; }
+      if (e.key === 'a' || e.key === 'A') { nav('tasks'); return; }
+      if (e.key === 'n' || e.key === 'N') { TaskModal.open(); return; }
+      if (e.key === 'q' || e.key === 'Q') { QuickAdd.open(); return; }
+    });
+
+    // Swipe between day shifts (basic): keep right/left arrow on today view
+    document.addEventListener('keydown', e => {
+      const tag = (e.target && e.target.tagName) || '';
+      const inField = ['INPUT','TEXTAREA','SELECT'].includes(tag) || e.target?.isContentEditable;
+      if (inField) return;
+      if (!document.getElementById('view-today').classList.contains('active')) return;
+      if (e.key === 'ArrowLeft')  { Sched.shift(-1); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { Sched.shift(1); e.preventDefault(); }
     });
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    seed();
-    initHeader();
+  async function init() {
+    Settings.init();
+    await Store.pull();
     Store.loadFocus();
-    initKeys();
+    AI.init();
+    Notify.init();
+    setupKeyboard();
+    // Tick clock for "now" line every minute
+    setInterval(() => {
+      if (currentView === 'today' || currentView === 'schedule') {
+        Sched.renderBoth();
+      }
+    }, 60000);
     nav('today');
-    Notion.sync();
-  });
+  }
 
-  return { nav, refresh };
+  return { nav, refresh, init };
 })();
+
+// Boot
+document.addEventListener('DOMContentLoaded', App.init);
