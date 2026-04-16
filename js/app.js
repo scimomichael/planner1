@@ -29,16 +29,16 @@ const App = (() => {
     switch (currentView) {
       case 'today':
         Sched.render('schedGrid', 'schedLabel', Sched.getOffset());
-        Tasks.renderDueSoon();
         break;
       case 'schedule':
         Sched.render('schedFullGrid', 'schedFullLabel', Sched.getFullOffset());
         break;
       case 'week':  Week.render();  break;
       case 'month': Month.render(); break;
-      case 'tasks': Tasks.render(); break;
       case 'stats': Stats.render(); break;
     }
+    // Sidebar class legend
+    if (typeof Classes !== 'undefined' && Classes.renderLegend) Classes.renderLegend();
   }
 
   function setupKeyboard() {
@@ -88,8 +88,7 @@ const App = (() => {
       if (e.key === 's' || e.key === 'S') { nav('schedule'); return; }
       if (e.key === 'w' || e.key === 'W') { nav('week'); return; }
       if (e.key === 'm' || e.key === 'M') { nav('month'); return; }
-      if (e.key === 'a' || e.key === 'A') { nav('tasks'); return; }
-      if (e.key === 'n' || e.key === 'N') { TaskModal.open(); return; }
+      if (e.key === 'n' || e.key === 'N') { BlockModal.open(Store.todayStr(), 12, 0); return; }
       if (e.key === 'q' || e.key === 'Q') { QuickAdd.open(); return; }
     });
 
@@ -110,8 +109,12 @@ const App = (() => {
     Store.loadFocus();
     AI.init();
     Notify.init();
+    // Populate all class selects and render sidebar legend
+    if (typeof Classes !== 'undefined') {
+      Classes.refreshAllSelects();
+      if (Classes.renderLegend) Classes.renderLegend();
+    }
     setupKeyboard();
-    // Tick clock for "now" line every minute
     setInterval(() => {
       if (currentView === 'today' || currentView === 'schedule') {
         Sched.renderBoth();

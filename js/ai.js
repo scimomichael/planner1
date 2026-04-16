@@ -11,7 +11,7 @@ const AI = (() => {
     if (!history.length) {
       history = [{
         role: 'assistant',
-        content: 'Hey Michael! I can help you plan your week, add tasks, schedule study time, or just chat about your workload. What\'s up?'
+        content: "Hey Michael! I can help you plan your week, schedule study blocks, find open slots, or move things around. Just tell me what you need."
       }];
       _persist();
     }
@@ -92,7 +92,7 @@ const AI = (() => {
     if (sendBtn) sendBtn.disabled = true;
 
     try {
-      // Build context: recent tasks, today's blocks, focus, tz
+      // Build context: upcoming blocks, classes, focus, tz
       const ctx = _buildContext();
       const msgsForApi = history.filter(m => m.role === 'user' || m.role === 'assistant').slice(-12);
 
@@ -143,10 +143,23 @@ const AI = (() => {
     const today = Store.todayStr();
     const scheduledKeys = Object.keys(Store.schedule).filter(dk => {
       const n = Store.daysUntil(dk);
-      return n !== null && n >= -1 && n <= 14;
-    });
+      return n !== null && n >= -1 && n <= 21;
+    }).sort();
     const sched = {};
-    scheduledKeys.forEach(dk => { sched[dk] = Store.schedule[dk]; });
+    scheduledKeys.forEach(dk => {
+      sched[dk] = (Store.schedule[dk] || []).map((b, i) => ({
+        index: i,
+        label: b.label,
+        type: b.type,
+        classLabel: b.classLabel || null,
+        start: b.start,
+        end: b.end,
+        due: b.due || null,
+        description: b.description || null,
+        recur: b.recur || null,
+        done: !!b.done,
+      }));
+    });
     return {
       today,
       timezone: Sched.getLocalTz(),
@@ -154,10 +167,8 @@ const AI = (() => {
         today: (JSON.parse(localStorage.getItem('pl3_focus') || '{}'))[today] || '',
       },
       schedule: sched,
-      tasks: Store.tasks.slice(0, 50).map(t => ({
-        id: t.id, name: t.name, category: t.category, classLabel: t.classLabel,
-        status: t.status, due: t.due, priority: t.priority, est: t.est,
-      })),
+      classes: Store.getClasses().map(c => ({ name: c.name, color: c.color })),
+      blockTypes: Sched.getBlockTypes().map(t => t.id),
     };
   }
 
@@ -167,40 +178,9 @@ const AI = (() => {
     for (const a of actions) {
       try {
         switch (a.type) {
-          case 'add_task': {
-            Store.tasks.push({
-              id: 'ai_' + Date.now() + Math.random().toString(36).slice(2),
-              name: a.name || 'Untitled',
-              category: a.category || 'hw',
-              classLabel: a.classLabel || '',
-              priority: a.priority || 'medium',
-              due: a.due || null,
-              status: a.status || 'Not started',
-              est: a.est || '',
-              description: a.notes || '',
-              tags: [],
-            });
-            applied++;
-            break;
-          }
-          case 'update_task': {
-            const t = Store.tasks.find(x => x.id === a.id);
-            if (t) {
-              Object.keys(a).forEach(k => {
-                if (k !== 'type' && k !== 'id') t[k] = a[k];
-              });
-              applied++;
-            }
-            break;
-          }
-          case 'delete_task': {
-            const idx = Store.tasks.findIndex(x => x.id === a.id);
-            if (idx >= 0) { Store.tasks.splice(idx, 1); applied++; }
-            break;
-          }
           case 'add_block': {
             if (!a.date || !a.start) break;
-            const blockType = a.type || 'study';
+            const blockType = a.blockType || a.type_hint || 'study';
             const css = Sched.getBlockTypes().find(t => t.id === blockType)?.css || 'sb-other';
             if (!Store.schedule[a.date]) Store.schedule[a.date] = [];
             Store.schedule[a.date].push({
@@ -210,10 +190,11 @@ const AI = (() => {
               start: a.start,
               end: a.end || a.start,
               due: a.due || null,
-              taskId: null,
+              classLabel: a.classLabel || '',
+              description: a.description || '',
               storedTz: Sched.getLocalTz(),
-              recur: null,
-              recurUntil: null,
+              recur: a.recur || null,
+              recurUntil: a.recurUntil || null,
               done: false,
             });
             applied++;
@@ -222,9 +203,29 @@ const AI = (() => {
           case 'update_block': {
             const list = Store.schedule[a.date];
             if (list && list[a.index]) {
-              Object.keys(a).forEach(k => {
-                if (!['type','date','index'].includes(k)) list[a.index][k] = a[k];
+              const b = list[a.index];
+              ['label','start','end','due','classLabel','description','recur','recurUntil','done'].forEach(k => {
+                if (a[k] !== undefined) b[k] = a[k];
               });
+              if (a.blockType) {
+                b.type = a.blockType;
+                b.css = Sched.getBlockTypes().find(t => t.id === a.blockType)?.css || 'sb-other';
+              }
+              applied++;
+            }
+            break;
+          }
+          case 'move_block': {
+            const list = Store.schedule[a.fromDate];
+            if (list && list[a.fromIndex]) {
+              const b = list[a.fromIndex];
+              list.splice(a.fromIndex, 1);
+              if (a.toDate) {
+                if (!Store.schedule[a.toDate]) Store.schedule[a.toDate] = [];
+                if (a.newStart) b.start = a.newStart;
+                if (a.newEnd) b.end = a.newEnd;
+                Store.schedule[a.toDate].push(b);
+              }
               applied++;
             }
             break;
@@ -239,6 +240,21 @@ const AI = (() => {
               const fm = JSON.parse(localStorage.getItem('pl3_focus') || '{}');
               fm[a.date] = a.text;
               localStorage.setItem('pl3_focus', JSON.stringify(fm));
+              applied++;
+            }
+            break;
+          }
+          case 'add_class': {
+            if (a.name) {
+              Store.addClass(a.name, a.color || '#8e8e93');
+              applied++;
+            }
+            break;
+          }
+          case 'rename_class': {
+            const c = Store.getClasses().find(x => x.name === a.oldName);
+            if (c && a.newName) {
+              Store.updateClass(c.id, { name: a.newName });
               applied++;
             }
             break;

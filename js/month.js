@@ -46,24 +46,18 @@ const Month = (() => {
       const isWeekend = dow === 0 || dow === 6;
 
       const blocks = Store.schedule[dk] || [];
-      const tasks = Store.tasks.filter(t => t.status !== 'Done' && (t.due === dk || t.schedDate === dk));
-
-      const all = [
-        ...tasks.slice(0, 3).map(t =>
-          `<div class="mo-chip mo-task cat-${t.category||'hw'}" title="${Store.esc(t.name)}">${Store.esc(t.name)}</div>`
-        ),
-        ...blocks.slice(0, 2).map(b =>
-          `<div class="mo-chip mo-block" title="${Store.esc(b.label)}">${Store.esc(b.label)}</div>`
-        ),
-      ];
-      const extra = Math.max(0, (tasks.length - 3) + (blocks.length - 2));
-      if (extra > 0) all.push(`<div class="mo-more">+${extra} more</div>`);
+      const chips = blocks.slice(0, 5).map(b => {
+        const clsColor = b.classLabel ? (Store.getClassColor(b.classLabel) || '') : '';
+        const style = clsColor ? ` style="border-left:2px solid ${clsColor}"` : '';
+        return `<div class="mo-chip mo-block"${style} title="${Store.esc(b.label)}">${Store.esc(b.label)}</div>`;
+      });
+      if (blocks.length > 5) chips.push(`<div class="mo-more">+${blocks.length - 5} more</div>`);
 
       html += `
         <div class="mo-cell${isOth ? ' mo-oth' : ''}${isToday ? ' mo-today' : ''}${isWeekend ? ' mo-weekend' : ''}"
              onclick="Month.jump('${dk}')">
           <div class="mo-dnum">${d.getDate()}</div>
-          ${all.join('')}
+          ${chips.join('')}
         </div>
       `;
     });

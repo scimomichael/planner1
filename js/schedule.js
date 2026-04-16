@@ -169,29 +169,29 @@ const Sched = (() => {
 
     box.innerHTML = '';
 
-    // AXIS
-    const axis = document.createElement('div');
-    axis.className = 'sched-axis';
-    const axisInner = document.createElement('div');
-    axisInner.className = 'sched-axis-inner';
-    axisInner.style.height = totalH + 'px';
-    HOURS.forEach((h, i) => {
-      const lbl = document.createElement('div');
-      lbl.className = 'sched-axis-lbl';
-      lbl.style.top = (i * 4 * SLOT_H) + 'px';
-      if (i === 0) lbl.style.transform = 'translateY(0)';
-      lbl.textContent = fmtHQ(h, 0);
-      axisInner.appendChild(lbl);
-    });
-    axis.appendChild(axisInner);
-    box.appendChild(axis);
-
-    // SCROLLER
+    // One scroller contains a two-column grid: axis | canvas.
+    // Both scroll together because they live in the same scrolling element.
     const scroller = document.createElement('div');
     scroller.className = 'sched-scroll';
+
+    const inner = document.createElement('div');
+    inner.className = 'sched-inner';
+    inner.style.height = totalH + 'px';
+
+    // AXIS column (scrolls with canvas)
+    const axis = document.createElement('div');
+    axis.className = 'sched-axis';
+    HOURS.forEach((h, i) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'sched-axis-lbl' + (i === 0 ? ' first' : '');
+      lbl.style.top = (i * 4 * SLOT_H) + 'px';
+      lbl.textContent = fmtHQ(h, 0);
+      axis.appendChild(lbl);
+    });
+
+    // CANVAS column
     const canvas = document.createElement('div');
     canvas.className = 'sched-canvas';
-    canvas.style.height = totalH + 'px';
 
     // Gridlines
     HOURS.forEach((_, i) => {
@@ -248,7 +248,6 @@ const Sched = (() => {
       const leftPct = col * widthPct;
 
       const isRecurInstance = !!b._recurFrom;
-      const linkedTask = b.taskId ? Store.tasks.find(t => t.id === b.taskId) : null;
       const timeDisp = b._dispStart && b._dispEnd ? `${fmtStr(b._dispStart)}–${fmtStr(b._dispEnd)}` : fmtStr(b._dispStart);
       const tzNote = b.storedTz && b.storedTz !== localTz
         ? `<div class="sched-block-tz">${Store.esc(b.storedTz.split('/').pop().replace(/_/g,' '))}</div>` : '';
@@ -264,6 +263,10 @@ const Sched = (() => {
         }
         dueHtml = `<div class="sched-block-due ${cls}">Due ${label}</div>`;
       }
+      const classPill = b.classLabel ? `<div class="sched-block-cls">${Store.clsPill(b.classLabel)}</div>` : '';
+      const descSnip = b.description
+        ? `<div class="sched-block-desc">${Store.esc(b.description.slice(0, 120))}${b.description.length > 120 ? '…' : ''}</div>`
+        : '';
       const recurBadge = (b.recur && b.recur !== 'none') || isRecurInstance
         ? `<div class="sched-block-recur" title="Recurring">↻</div>` : '';
 
@@ -281,9 +284,10 @@ const Sched = (() => {
         ${recurBadge}
         <div class="sched-block-name">${Store.esc(b.label)}</div>
         ${timeDisp ? `<div class="sched-block-time">${timeDisp}</div>` : ''}
+        ${classPill}
         ${tzNote}
         ${dueHtml}
-        ${linkedTask ? `<div class="sched-block-task">→ ${Store.esc(linkedTask.name)}</div>` : ''}
+        ${descSnip}
         <div class="sched-block-resize" data-act="resize"></div>
       `;
 
@@ -291,10 +295,15 @@ const Sched = (() => {
       canvas.appendChild(block);
     });
 
-    scroller.appendChild(canvas);
+    inner.appendChild(axis);
+    inner.appendChild(canvas);
+    scroller.appendChild(inner);
     box.appendChild(scroller);
 
-    if (isToday && Settings.get('sAutoScroll', true)) {
+    // Auto-scroll so the current time lands roughly in the middle of the
+    // viewport. Applies on today (both compact and full-day views).
+    const isTodayDate = (off === 0);
+    if (isTodayDate && Settings.get('sAutoScroll', true)) {
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const now = new Date();
         const nowM = now.getHours() * 60 + now.getMinutes();
@@ -578,16 +587,16 @@ const BlockModal = (() => {
     document.getElementById('bStart').value = startTime;
     document.getElementById('bEnd').value = endTime;
     document.getElementById('bDue').value = '';
+    document.getElementById('bDescription').value = '';
     document.getElementById('bRecur').value = 'none';
     document.getElementById('bRecurUntil').value = '';
     document.getElementById('bRecurEndGroup').style.display = 'none';
     renderTypeGrid('bTypeGrid', _type, setType);
-    populateTaskSelect('bTaskLink', null);
+    if (typeof Classes !== 'undefined') Classes.populateSelect('bClass', '');
     buildTzSelect('bTz');
     document.getElementById('blockOverlay').classList.add('open');
     setTimeout(() => document.getElementById('bLabel').focus(), 50);
 
-    // Wire recur toggle
     document.getElementById('bRecur').onchange = e => {
       const g = document.getElementById('bRecurEndGroup');
       g.style.display = e.target.value === 'none' ? 'none' : '';
@@ -602,15 +611,16 @@ const BlockModal = (() => {
     const start     = document.getElementById('bStart').value;
     const end       = document.getElementById('bEnd').value;
     if (!start) { document.getElementById('bStart').focus(); return; }
-    const due       = document.getElementById('bDue').value || null;
-    const taskId    = document.getElementById('bTaskLink').value || null;
-    const storedTz  = document.getElementById('bTz')?.value || Sched.getLocalTz();
-    const recur     = document.getElementById('bRecur').value;
-    const recurUntil = recur !== 'none' ? (document.getElementById('bRecurUntil').value || null) : null;
+    const due         = document.getElementById('bDue').value || null;
+    const classLabel  = document.getElementById('bClass').value || '';
+    const description = document.getElementById('bDescription').value.trim();
+    const storedTz    = document.getElementById('bTz')?.value || Sched.getLocalTz();
+    const recur       = document.getElementById('bRecur').value;
+    const recurUntil  = recur !== 'none' ? (document.getElementById('bRecurUntil').value || null) : null;
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
     Sched.addBlock(_dk, {
       label, type: _type, css, start, end,
-      due, taskId, storedTz,
+      due, classLabel, description, storedTz,
       recur: recur === 'none' ? null : recur,
       recurUntil,
       done: false
@@ -640,8 +650,9 @@ const EditBlock = (() => {
     document.getElementById('ebEnd').value = block.end || '';
     document.getElementById('ebDate').value = dk;
     document.getElementById('ebDue').value = block.due || '';
+    document.getElementById('ebDescription').value = block.description || '';
     renderTypeGrid('ebTypeGrid', _type, setType);
-    populateTaskSelect('ebTaskLink', block.taskId || null);
+    if (typeof Classes !== 'undefined') Classes.populateSelect('ebClass', block.classLabel || '');
     buildTzSelect('ebTz');
     const tzSel = document.getElementById('ebTz');
     if (tzSel) tzSel.value = block.storedTz || Sched.getLocalTz();
@@ -653,16 +664,17 @@ const EditBlock = (() => {
   function overlayClick(e) { if (e.target.id === 'editBlockOverlay') close(); }
 
   function save() {
-    const label    = document.getElementById('ebLabel').value.trim();
-    const start    = document.getElementById('ebStart').value;
-    const end      = document.getElementById('ebEnd').value;
-    const newDk    = document.getElementById('ebDate').value;
-    const due      = document.getElementById('ebDue').value || null;
-    const taskId   = document.getElementById('ebTaskLink').value || null;
-    const storedTz = document.getElementById('ebTz')?.value || Sched.getLocalTz();
+    const label       = document.getElementById('ebLabel').value.trim();
+    const start       = document.getElementById('ebStart').value;
+    const end         = document.getElementById('ebEnd').value;
+    const newDk       = document.getElementById('ebDate').value;
+    const due         = document.getElementById('ebDue').value || null;
+    const classLabel  = document.getElementById('ebClass').value || '';
+    const description = document.getElementById('ebDescription').value.trim();
+    const storedTz    = document.getElementById('ebTz')?.value || Sched.getLocalTz();
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
     const orig = Store.schedule[_dk]?.[_bi] || {};
-    const block = { ...orig, label, type: _type, css, start, end, due, taskId, storedTz };
+    const block = { ...orig, label, type: _type, css, start, end, due, classLabel, description, storedTz };
     if (newDk !== _dk) {
       Sched.removeBlock(_dk, _bi);
       Sched.addBlock(newDk, block);
@@ -693,13 +705,7 @@ function renderTypeGrid(gridId, activeId, onPick) {
 }
 
 function populateTaskSelect(selectId, selectedId) {
-  const sel = document.getElementById(selectId);
-  if (!sel) return;
-  const active = Store.tasks.filter(t => t.status !== 'Done');
-  sel.innerHTML = `<option value="">— None —</option>` +
-    active.map(t =>
-      `<option value="${t.id}"${t.id === selectedId ? ' selected' : ''}>${Store.esc(t.name.slice(0,55))}</option>`
-    ).join('');
+  // Legacy no-op — tasks removed. Kept as stub for defense in depth.
 }
 
 function buildTzSelect(selectId) {

@@ -10,12 +10,11 @@ const CmdK = (() => {
     { id: 'c-sched',    title: 'Full Schedule',     sub: 'Day-view with full height', action: () => App.nav('schedule') },
     { id: 'c-week',     title: 'Week View',         sub: '7-day overview',           action: () => App.nav('week') },
     { id: 'c-month',    title: 'Month View',        sub: '6-week calendar',          action: () => App.nav('month') },
-    { id: 'c-tasks',    title: 'All Tasks',         sub: 'Kanban board',             action: () => App.nav('tasks') },
-    { id: 'c-stats',    title: 'Stats',             sub: 'Time & task breakdown',    action: () => App.nav('stats') },
-    { id: 'c-newtask',  title: 'New Task',          sub: 'Create a new task',        action: () => { close(); TaskModal.open(); } },
+    { id: 'c-stats',    title: 'Stats',             sub: 'Time & schedule breakdown', action: () => App.nav('stats') },
     { id: 'c-newblock', title: 'New Block (today)', sub: 'Add a schedule block for today', action: () => { close(); BlockModal.open(Store.todayStr(), 12, 0); } },
     { id: 'c-quickadd', title: 'Quick Add',         sub: 'Natural language add',     action: () => { close(); QuickAdd.open(); } },
     { id: 'c-templates',title: 'Block Templates',   sub: 'Manage & insert templates',action: () => { close(); Templates.open(); } },
+    { id: 'c-classes',  title: 'Manage Classes',    sub: 'Add, rename, recolor',     action: () => { close(); Classes.open(); } },
     { id: 'c-settings', title: 'Settings',          sub: 'Customize your planner',   action: () => { close(); Settings.open(); } },
     { id: 'c-ai',       title: 'Toggle AI Chat',    sub: 'Open/close Claude panel',  action: () => { close(); AI.toggle(); } },
     { id: 'c-dark',     title: 'Toggle Dark Mode',  sub: 'Switch light/dark theme',  action: () => { close(); Settings.toggleDark(); } },
@@ -87,28 +86,13 @@ const CmdK = (() => {
   function render(q) {
     const res = document.getElementById('cmdkResults');
     currentItems = [];
-    const groups = { Commands: [], Tasks: [], Blocks: [] };
+    const groups = { Commands: [], Blocks: [] };
 
     // Commands
     CORE_COMMANDS.forEach(c => {
       const s = fuzzyScore(c.title + ' ' + (c.sub||''), q);
       if (s > 0 || !q) {
         groups.Commands.push({ ...c, score: s });
-      }
-    });
-
-    // Tasks
-    Store.tasks.slice(0, 200).forEach(t => {
-      const s = fuzzyScore(t.name + ' ' + (t.classLabel||''), q);
-      if (s > 0) {
-        groups.Tasks.push({
-          id: 'task-' + t.id,
-          title: t.name,
-          sub: `${t.classLabel ? t.classLabel + ' · ' : ''}${t.status}`,
-          score: s,
-          action: () => { close(); TaskModal.openEdit(t.id); },
-          ico: 'task'
-        });
       }
     });
 

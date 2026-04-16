@@ -13,7 +13,28 @@ const Store = (() => {
   let focusMap  = ls.get('focus')     || {};
   let templates = ls.get('templates') || _defaultTemplates();
   let classClr  = ls.get('classClr')  || {};
+  let classes   = ls.get('classes')   || _defaultClasses(classClr);
   let meta      = ls.get('meta')      || { lastPull: 0, lastPush: 0 };
+
+  function _defaultClasses(legacyColors) {
+    const base = [
+      { name: 'AP Language',          color: '#ff3b30' },
+      { name: 'AP Biology',           color: '#34c759' },
+      { name: 'AP US History',        color: '#ff9500' },
+      { name: 'Honors Spanish IV',    color: '#ffcc00' },
+      { name: 'Precalculus',          color: '#007aff' },
+      { name: 'Congressional Debate', color: '#af52de' },
+      { name: 'Harvard Pre-College',  color: '#a2845e' },
+      { name: 'Personal',             color: '#8e8e93' },
+    ];
+    // If legacy classClr had custom colors, respect them
+    return base.map((c, i) => ({
+      id: 'cls_' + Math.random().toString(36).slice(2) + i,
+      name: c.name,
+      color: (legacyColors && legacyColors[c.name]) || c.color,
+      order: i,
+    }));
+  }
 
   function _defaultTemplates() {
     return [
@@ -55,6 +76,7 @@ const Store = (() => {
     ls.set('focus', focusMap);
     ls.set('templates', templates);
     ls.set('classClr', classClr);
+    ls.set('classes', classes);
     ls.set('meta', meta);
     _queuePush();
   }
@@ -84,7 +106,7 @@ const Store = (() => {
       const res = await fetch('/api/sync?action=push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, meta }),
+        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, meta }),
       });
       if (res.ok) {
         const d = await res.json();
@@ -111,6 +133,7 @@ const Store = (() => {
         if (r.focus && typeof r.focus === 'object') { focusMap = { ...focusMap, ...r.focus }; ls.set('focus', focusMap); }
         if (Array.isArray(r.templates) && r.templates.length) { templates = r.templates; ls.set('templates', templates); }
         if (r.classClr && typeof r.classClr === 'object') { classClr = r.classClr; ls.set('classClr', classClr); }
+        if (Array.isArray(r.classes) && r.classes.length) { classes = r.classes; ls.set('classes', classes); }
         meta.lastPull = rTime; ls.set('meta', meta);
         _setSync('ok', 'Synced');
         return true;
@@ -179,18 +202,15 @@ const Store = (() => {
     return `<span class="due-chip d-ok">${fmtDate(str)}</span>`;
   }
 
-  const CLS_CSS = {
-    'AP Language':'cc-apl','AP Biology':'cc-bio','AP US History':'cc-hist',
-    'Honors Spanish IV':'cc-spa','Precalculus':'cc-pre',
-    'Congressional Debate':'cc-deb','Harvard Pre-College':'cc-hpc',
-  };
-  function clsPill(cls) {
-    if (!cls) return '';
-    const custom = classClr[cls];
-    if (custom) {
-      return `<span class="cls-chip" style="background:${custom}22;color:${custom}">${esc(cls)}</span>`;
-    }
-    return `<span class="cls-chip ${CLS_CSS[cls]||''}">${esc(cls)}</span>`;
+  function getClassByName(name) {
+    if (!name) return null;
+    return classes.find(c => c.name === name) || null;
+  }
+  function clsPill(clsName) {
+    if (!clsName) return '';
+    const c = getClassByName(clsName);
+    const color = (c && c.color) || classClr[clsName] || '#8e8e93';
+    return `<span class="cls-chip" style="background:${color}1f;color:${color};border:1px solid ${color}33">${esc(clsName)}</span>`;
   }
 
   function esc(s) {
@@ -222,25 +242,102 @@ const Store = (() => {
   }
   function getTemplates() { return templates; }
 
-  // Class color helpers
-  function getClassColor(cls) { return classClr[cls] || null; }
-  function setClassColor(cls, color) {
-    if (color) classClr[cls] = color;
-    else delete classClr[cls];
+  // ── Class CRUD ──────────────────────────────────────
+  function getClasses() {
+    return [...classes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+  function addClass(name, color) {
+    name = (name || '').trim();
+    if (!name) return null;
+    if (classes.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+      toast(`"${name}" already exists`);
+      return null;
+    }
+    const maxOrder = classes.reduce((m, c) => Math.max(m, c.order || 0), -1);
+    const cls = {
+      id: 'cls_' + Date.now() + Math.random().toString(36).slice(2),
+      name,
+      color: color || '#8e8e93',
+      order: maxOrder + 1,
+    };
+    classes.push(cls);
+    persist();
+    return cls;
+  }
+  function updateClass(id, patch) {
+    const c = classes.find(x => x.id === id);
+    if (!c) return false;
+    const oldName = c.name;
+    if (patch.name !== undefined) c.name = patch.name.trim();
+    if (patch.color !== undefined) c.color = patch.color;
+    // Propagate rename to all tasks and blocks
+    if (patch.name !== undefined && patch.name !== oldName) {
+      tasks.forEach(t => { if (t.classLabel === oldName) t.classLabel = c.name; });
+      Object.values(schedule).forEach(list => {
+        list.forEach(b => { if (b.classLabel === oldName) b.classLabel = c.name; });
+      });
+    }
+    persist();
+    return true;
+  }
+  // Remove a class. Optionally reassign existing assignments to another class name.
+  function removeClass(id, reassignTo) {
+    const c = classes.find(x => x.id === id);
+    if (!c) return false;
+    const oldName = c.name;
+    classes = classes.filter(x => x.id !== id);
+    const newName = reassignTo || '';
+    tasks.forEach(t => { if (t.classLabel === oldName) t.classLabel = newName; });
+    Object.values(schedule).forEach(list => {
+      list.forEach(b => { if (b.classLabel === oldName) b.classLabel = newName; });
+    });
+    persist();
+    return true;
+  }
+  function countClassAssignments(name) {
+    let n = 0;
+    tasks.forEach(t => { if (t.classLabel === name) n++; });
+    Object.values(schedule).forEach(list => {
+      list.forEach(b => { if (b.classLabel === name) n++; });
+    });
+    return n;
+  }
+  function reorderClasses(orderedIds) {
+    orderedIds.forEach((id, i) => {
+      const c = classes.find(x => x.id === id);
+      if (c) c.order = i;
+    });
     persist();
   }
 
+  // Legacy color helpers (retained for backward compat but now routed via classes array)
+  function getClassColor(clsName) {
+    const c = getClassByName(clsName);
+    return (c && c.color) || classClr[clsName] || null;
+  }
+  function setClassColor(clsName, color) {
+    const c = getClassByName(clsName);
+    if (c) {
+      c.color = color || '#8e8e93';
+      persist();
+    } else {
+      if (color) classClr[clsName] = color;
+      else delete classClr[clsName];
+      persist();
+    }
+  }
+
   return {
-    get tasks() { return tasks; },
-    set tasks(v) { tasks = v; },
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
     persist, snapshot, undo, redo,
     saveFocus, loadFocus, pull,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays, monthDays,
     duePill, clsPill, esc, toast,
-    clearSchedule, clearTasks, clearTemplates,
+    clearSchedule, clearTemplates,
     addTemplate, removeTemplate, getTemplates,
     getClassColor, setClassColor,
+    getClasses, getClassByName, addClass, updateClass, removeClass,
+    countClassAssignments, reorderClasses,
   };
 })();

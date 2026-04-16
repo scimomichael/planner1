@@ -208,37 +208,25 @@ const QuickAdd = (() => {
     const raw = document.getElementById('qaInput').value;
     const parsed = parse(raw);
     if (!parsed) { Store.toast('Nothing to add'); return; }
-    if (parsed.kind === 'block') {
-      const css = Sched.getBlockTypes().find(t => t.id === parsed.type)?.css || 'sb-other';
-      Sched.addBlock(parsed.date, {
-        label: parsed.label,
-        type: parsed.type,
-        css,
-        start: parsed.start, end: parsed.end,
-        due: null, taskId: null,
-        storedTz: Sched.getLocalTz(),
-        recur: null, recurUntil: null,
-        done: false,
-      });
-      Store.toast('Block added');
-    } else {
-      Store.snapshot();
-      Store.tasks.push({
-        id: 'local_' + Date.now() + Math.random().toString(36).slice(2),
-        name: parsed.label,
-        category: 'hw',
-        classLabel: parsed.classLabel || '',
-        due: parsed.date,
-        status: 'Not started',
-        priority: 'medium',
-        est: '',
-        description: '',
-        tags: [],
-      });
-      Store.persist();
-      Store.toast('Task added');
-      App.refresh();
-    }
+    const date = parsed.date || Store.todayStr();
+    // Default block shape — if no time specified, use a 1-hour block at noon
+    let start = parsed.start;
+    let end   = parsed.end;
+    if (!start) { start = '12:00'; end = '13:00'; }
+    const type = parsed.classLabel ? 'class' : (parsed.type || 'study');
+    const css  = Sched.getBlockTypes().find(t => t.id === type)?.css || 'sb-other';
+    Sched.addBlock(date, {
+      label: parsed.label,
+      type, css,
+      start, end,
+      due: null,
+      classLabel: parsed.classLabel || '',
+      description: '',
+      storedTz: Sched.getLocalTz(),
+      recur: null, recurUntil: null,
+      done: false,
+    });
+    Store.toast('Block added');
     close();
   }
 

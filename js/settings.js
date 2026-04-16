@@ -9,7 +9,6 @@ const Settings = (() => {
     sNowLine: true,
     sAutoScroll: true,
     sFocusBar: true,
-    sDueSoon: true,
     sBlockDue: true,
     sAIEnabled: true,
     sStartHour: 5,
@@ -48,8 +47,6 @@ const Settings = (() => {
   function applyVisibility() {
     const fb = document.getElementById('focusBar');
     if (fb) fb.style.display = get('sFocusBar', true) ? '' : 'none';
-    const ds = document.getElementById('dueSoonCol');
-    if (ds) ds.style.display = get('sDueSoon', true) ? '' : 'none';
     const ab = document.getElementById('aiBubble');
     if (ab) ab.style.display = get('sAIEnabled', true) ? '' : 'none';
     if (!get('sAIEnabled', true)) {
@@ -80,7 +77,6 @@ const Settings = (() => {
       if (el.type === 'checkbox') el.checked = !!get(k);
       else el.value = String(get(k));
     });
-    renderClassColorList();
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const el = document.getElementById('tzDisplay');
@@ -128,49 +124,6 @@ const Settings = (() => {
     }
   }
 
-  function renderClassColorList() {
-    const list = document.getElementById('classColorList');
-    if (!list) return;
-    const classes = [
-      'AP Language', 'AP Biology', 'AP US History',
-      'Honors Spanish IV', 'Precalculus',
-      'Congressional Debate', 'Harvard Pre-College'
-    ];
-    list.innerHTML = classes.map(cls => {
-      const color = Store.getClassColor(cls) || _defaultColor(cls);
-      return `
-        <div class="settings-row">
-          <div class="settings-row-main">
-            <div class="settings-row-title">${Store.esc(cls)}</div>
-            <div class="settings-row-sub">${Store.getClassColor(cls) ? 'Custom color' : 'Default'}</div>
-          </div>
-          <input type="color" value="${color}" data-cls="${Store.esc(cls)}" onchange="Settings.updateClassColor(event)">
-        </div>
-      `;
-    }).join('');
-  }
-
-  function _defaultColor(cls) {
-    const map = {
-      'AP Language': '#ff9500',
-      'AP Biology': '#34c759',
-      'AP US History': '#ff3b30',
-      'Honors Spanish IV': '#af52de',
-      'Precalculus': '#007aff',
-      'Congressional Debate': '#ffcc00',
-      'Harvard Pre-College': '#ff2d55',
-    };
-    return map[cls] || '#8e8e93';
-  }
-
-  function updateClassColor(e) {
-    const cls = e.target.dataset.cls;
-    const color = e.target.value;
-    Store.setClassColor(cls, color);
-    renderClassColorList();
-    App.refresh();
-  }
-
   function forcePull() {
     Store.pull().then(changed => {
       if (changed) App.refresh();
@@ -183,12 +136,6 @@ const Settings = (() => {
     Store.clearSchedule();
     App.refresh();
     Store.toast('Schedule cleared');
-  }
-  function clearTasks() {
-    if (!confirm('Clear all tasks? This cannot be undone.')) return;
-    Store.clearTasks();
-    App.refresh();
-    Store.toast('Tasks cleared');
   }
   function clearTemplates() {
     if (!confirm('Reset all templates to defaults?')) return;
@@ -243,7 +190,7 @@ const Settings = (() => {
   return {
     get, set, init, open, close, overlayClick, save,
     toggleDark, toggleNotify,
-    forcePull, clearSchedule, clearTasks, clearTemplates,
-    exportICal, renderClassColorList, updateClassColor,
+    forcePull, clearSchedule, clearTemplates,
+    exportICal,
   };
 })();

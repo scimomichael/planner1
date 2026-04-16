@@ -51,12 +51,6 @@
           </div>
           <span>Month</span>
         </button>
-        <button class="nav-btn" data-view="tasks" onclick="App.nav('tasks')">
-          <div class="nav-ico" style="background:#ff9500;color:#fff">
-            <svg viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h7M2 10h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-          <span>All Tasks</span>
-        </button>
         <button class="nav-btn" data-view="stats" onclick="App.nav('stats')">
           <div class="nav-ico" style="background:#af52de;color:#fff">
             <svg viewBox="0 0 14 14" fill="none"><path d="M2 12V6M6 12V3M10 12V8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -65,13 +59,8 @@
         </button>
       </nav>
 
-      <div class="sb-section-hd">Categories</div>
-      <div class="sb-legend">
-        <div class="legend-row"><span class="cdot" style="background:#007aff"></span>Homework</div>
-        <div class="legend-row"><span class="cdot" style="background:#ff3b30"></span>Test / Major</div>
-        <div class="legend-row"><span class="cdot" style="background:#34c759"></span>Extracurricular</div>
-        <div class="legend-row"><span class="cdot" style="background:#8e8e93"></span>Personal</div>
-      </div>
+      <div class="sb-section-hd">Classes</div>
+      <div class="sb-legend" id="sbClassLegend"></div>
     </div>
 
     <div class="sb-foot">
@@ -107,9 +96,9 @@
             <svg viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             Quick Add
           </button>
-          <button class="btn-add" onclick="TaskModal.open()">
+          <button class="btn-add" onclick="BlockModal.open(Store.todayStr(), 12, 0)">
             <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            New Task
+            New Block
           </button>
         </div>
       </div>
@@ -121,7 +110,7 @@
         <input id="focusInput" class="focus-input" placeholder="What's the one thing you must get done today?" oninput="Store.saveFocus()">
       </div>
 
-      <div class="today-grid">
+      <div class="today-grid today-grid-single">
         <div class="today-schedule-col">
           <div class="panel-hd">
             <h2>Schedule</h2>
@@ -133,18 +122,10 @@
               <button class="day-nav-btn" onclick="Sched.shift(1)" title="Next day">
                 <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
-              <button class="day-nav-btn" onclick="Sched.today()" title="Jump to today" style="margin-left:4px;width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button>
+              <button class="day-nav-btn day-nav-today" onclick="Sched.today()" title="Jump to today">Today</button>
             </div>
           </div>
           <div class="sched-box" id="schedGrid"></div>
-        </div>
-
-        <div class="today-tasks-col" id="dueSoonCol">
-          <div class="panel-hd">
-            <h2>Due Soon</h2>
-            <button class="btn-text-link" onclick="App.nav('tasks')">All →</button>
-          </div>
-          <div id="dueSoon"></div>
         </div>
       </div>
     </div>
@@ -165,9 +146,9 @@
             <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <button class="btn-secondary" onclick="Templates.open()">Templates</button>
-          <button class="btn-add" onclick="TaskModal.open()">
+          <button class="btn-add" onclick="BlockModal.open(Store.todayStr(), 12, 0)">
             <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            New Task
+            New Block
           </button>
         </div>
       </div>
@@ -189,9 +170,9 @@
           <button class="btn-icon-pill" onclick="Week.shift(1)">
             <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="btn-add" onclick="TaskModal.open()">
+          <button class="btn-add" onclick="BlockModal.open(Store.todayStr(), 12, 0)">
             <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            New Task
+            New Block
           </button>
         </div>
       </div>
@@ -213,47 +194,13 @@
           <button class="btn-icon-pill" onclick="Month.shift(1)">
             <svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="btn-add" onclick="TaskModal.open()">
+          <button class="btn-add" onclick="BlockModal.open(Store.todayStr(), 12, 0)">
             <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            New Task
+            New Block
           </button>
         </div>
       </div>
       <div id="monthGrid" class="month-grid"></div>
-    </div>
-
-    <!-- ALL TASKS -->
-    <div class="view" id="view-tasks">
-      <div class="view-hd">
-        <div>
-          <h1>All Tasks</h1>
-          <p class="view-sub">All your tasks, organized by status</p>
-        </div>
-        <div class="view-hd-right">
-          <select class="filter-chip" id="fCat" onchange="Tasks.render()">
-            <option value="">All Categories</option>
-            <option value="hw">Homework</option>
-            <option value="test">Test / Major</option>
-            <option value="ec">Extracurricular</option>
-            <option value="per">Personal</option>
-          </select>
-          <select class="filter-chip" id="fClass" onchange="Tasks.render()">
-            <option value="">All Classes</option>
-            <option>AP Language</option>
-            <option>AP Biology</option>
-            <option>AP US History</option>
-            <option>Honors Spanish IV</option>
-            <option>Precalculus</option>
-            <option>Congressional Debate</option>
-            <option>Harvard Pre-College</option>
-          </select>
-          <button class="btn-add" onclick="TaskModal.open()">
-            <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            New Task
-          </button>
-        </div>
-      </div>
-      <div id="kanban" class="kanban"></div>
     </div>
 
     <!-- STATS -->
@@ -268,90 +215,6 @@
     </div>
 
   </main>
-</div>
-
-<!-- ═════ TASK MODAL ═════ -->
-<div class="modal-overlay" id="taskOverlay" onclick="TaskModal.overlayClick(event)">
-  <div class="modal">
-    <div class="modal-hd">
-      <span id="taskModalTitle">New Task</span>
-      <button class="modal-close" onclick="TaskModal.close()">
-        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <div class="modal-bd">
-      <input class="field-hero" id="tName" placeholder="Task name" autocomplete="off">
-      <div class="field-group">
-        <div class="field-label">Category</div>
-        <div class="seg-group-2col" id="catPicker">
-          <button class="seg-btn active" data-c="hw" onclick="TaskModal.setCat('hw')"><span class="cdot" style="background:#007aff"></span>Homework</button>
-          <button class="seg-btn" data-c="test" onclick="TaskModal.setCat('test')"><span class="cdot" style="background:#ff3b30"></span>Test / Major</button>
-          <button class="seg-btn" data-c="ec" onclick="TaskModal.setCat('ec')"><span class="cdot" style="background:#34c759"></span>EC</button>
-          <button class="seg-btn" data-c="per" onclick="TaskModal.setCat('per')"><span class="cdot" style="background:#8e8e93"></span>Personal</button>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <div class="field-label">Class</div>
-          <select class="field-select" id="tClass">
-            <option value="">None</option>
-            <option>AP Language</option>
-            <option>AP Biology</option>
-            <option>AP US History</option>
-            <option>Honors Spanish IV</option>
-            <option>Precalculus</option>
-            <option>Congressional Debate</option>
-            <option>Harvard Pre-College</option>
-            <option>Personal</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <div class="field-label">Status</div>
-          <select class="field-select" id="tStatus">
-            <option>Not started</option>
-            <option>In progress</option>
-            <option>Done</option>
-          </select>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <div class="field-label">Due Date</div>
-          <input class="field-input" type="date" id="tDue">
-        </div>
-        <div class="field-group">
-          <div class="field-label">Priority</div>
-          <div class="seg-group" id="priPicker">
-            <button class="seg-btn" data-p="low" onclick="TaskModal.setPri('low')">Low</button>
-            <button class="seg-btn active" data-p="medium" onclick="TaskModal.setPri('medium')">Medium</button>
-            <button class="seg-btn" data-p="high" onclick="TaskModal.setPri('high')">High</button>
-          </div>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field-group">
-          <div class="field-label">Est. Time</div>
-          <input class="field-input" id="tEst" placeholder="e.g. 2h 30m">
-        </div>
-        <div class="field-group">
-          <div class="field-label">Schedule On <span class="field-hint">(separate from due)</span></div>
-          <input class="field-input" type="date" id="tSchedDate">
-        </div>
-      </div>
-      <div class="field-group">
-        <div class="field-label">Tags <span class="field-hint">(comma separated)</span></div>
-        <input class="field-input" id="tTags" placeholder="e.g. urgent, review, midterm">
-      </div>
-      <div class="field-group">
-        <div class="field-label">Notes</div>
-        <textarea class="field-input field-textarea" id="tNotes" rows="2" placeholder="Any details..."></textarea>
-      </div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn-cancel" onclick="TaskModal.close()">Cancel</button>
-      <button class="btn-save" onclick="TaskModal.save()">Save</button>
-    </div>
-  </div>
 </div>
 
 <!-- ═════ BLOCK ADD MODAL ═════ -->
@@ -379,9 +242,15 @@
         <div class="field-label">Type</div>
         <div class="block-type-grid" id="bTypeGrid"></div>
       </div>
-      <div class="field-group">
-        <div class="field-label">Due Date <span class="field-hint">(reference only — won't move the block)</span></div>
-        <input class="field-input" type="date" id="bDue">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Class <span class="field-hint">(optional)</span></div>
+          <select class="field-select" id="bClass" data-class-select></select>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Due Date <span class="field-hint">(for assignments)</span></div>
+          <input class="field-input" type="date" id="bDue">
+        </div>
       </div>
       <div class="field-group">
         <div class="field-label">Recurring</div>
@@ -397,8 +266,8 @@
         <input class="field-input" type="date" id="bRecurUntil">
       </div>
       <div class="field-group">
-        <div class="field-label">Link to Task <span class="field-hint">(optional)</span></div>
-        <select class="field-select" id="bTaskLink"><option value="">— None —</option></select>
+        <div class="field-label">Description <span class="field-hint">(optional)</span></div>
+        <textarea class="field-input field-textarea" id="bDescription" rows="2" placeholder="Details, notes, assignment info..."></textarea>
       </div>
       <div class="field-group">
         <div class="field-label">Timezone</div>
@@ -443,13 +312,19 @@
         <div class="field-label">Type</div>
         <div class="block-type-grid" id="ebTypeGrid"></div>
       </div>
-      <div class="field-group">
-        <div class="field-label">Due Date <span class="field-hint">(reference only — won't move the block)</span></div>
-        <input class="field-input" type="date" id="ebDue">
+      <div class="field-row">
+        <div class="field-group">
+          <div class="field-label">Class <span class="field-hint">(optional)</span></div>
+          <select class="field-select" id="ebClass" data-class-select></select>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Due Date <span class="field-hint">(for assignments)</span></div>
+          <input class="field-input" type="date" id="ebDue">
+        </div>
       </div>
       <div class="field-group">
-        <div class="field-label">Linked Task</div>
-        <select class="field-select" id="ebTaskLink"><option value="">— None —</option></select>
+        <div class="field-label">Description <span class="field-hint">(optional)</span></div>
+        <textarea class="field-input field-textarea" id="ebDescription" rows="2" placeholder="Details, notes, assignment info..."></textarea>
       </div>
       <div class="field-group">
         <div class="field-label">Timezone</div>
@@ -563,13 +438,6 @@
           </div>
           <div class="settings-row">
             <div class="settings-row-main">
-              <div class="settings-row-title">Show Due Soon Panel</div>
-              <div class="settings-row-sub">Upcoming tasks sidebar on Today view</div>
-            </div>
-            <label class="toggle"><input type="checkbox" id="sDueSoon" checked onchange="Settings.save()"><span class="toggle-track"></span></label>
-          </div>
-          <div class="settings-row">
-            <div class="settings-row-main">
               <div class="settings-row-title">Show Due Date on Blocks</div>
               <div class="settings-row-sub">Display block's due date on the schedule</div>
             </div>
@@ -633,8 +501,16 @@
       </div>
 
       <div class="settings-section">
-        <div class="settings-section-title">Class Colors</div>
-        <div class="settings-list" id="classColorList"></div>
+        <div class="settings-section-title">Classes</div>
+        <div class="settings-list">
+          <div class="settings-row clickable" onclick="Classes.open()">
+            <div class="settings-row-main">
+              <div class="settings-row-title">Manage classes</div>
+              <div class="settings-row-sub">Add, rename, reorder, recolor, or delete classes</div>
+            </div>
+            <svg viewBox="0 0 10 16" fill="none" width="10" height="14" style="color:var(--label3)"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -689,13 +565,6 @@
           </div>
           <div class="settings-row">
             <div class="settings-row-main">
-              <div class="settings-row-title">Clear All Tasks</div>
-              <div class="settings-row-sub">Remove all tasks (cannot be undone)</div>
-            </div>
-            <button class="btn-danger-sm" onclick="Settings.clearTasks()">Clear</button>
-          </div>
-          <div class="settings-row">
-            <div class="settings-row-main">
               <div class="settings-row-title">Clear Templates</div>
               <div class="settings-row-sub">Remove all saved block templates</div>
             </div>
@@ -706,6 +575,52 @@
     </div>
     <div class="modal-ft">
       <button class="btn-save" onclick="Settings.close()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ MANAGE CLASSES MODAL ═════ -->
+<div class="modal-overlay" id="classesOverlay" onclick="Classes.overlayClick(event)">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <span>Manage Classes</span>
+      <button class="modal-close" onclick="Classes.close()">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd">
+      <p class="cls-modal-hint">Drag to reorder. Click a name to rename. Click the color swatch to change color.</p>
+      <div id="classesList" class="cls-list"></div>
+      <div class="cls-add-row">
+        <input type="text" id="newClassName" class="field-input" placeholder="New class name (e.g. Physics Honors)" onkeydown="if(event.key==='Enter'){event.preventDefault();Classes.addFromForm();}">
+        <button class="btn-add btn-add-sm" onclick="Classes.addFromForm()">
+          <svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add
+        </button>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-save" onclick="Classes.close()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ REASSIGN ON DELETE MODAL ═════ -->
+<div class="modal-overlay" id="reassignOverlay">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <span>Reassign before delete</span>
+    </div>
+    <div class="modal-bd">
+      <p class="reassign-lead">You're about to delete <strong id="reassignClassName"></strong>. It's used by <strong id="reassignCount"></strong> existing entries.</p>
+      <div class="field-group">
+        <div class="field-label">Reassign these entries to</div>
+        <select class="field-select" id="reassignTarget"></select>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-cancel" id="reassignCancel">Cancel</button>
+      <button class="btn-danger" id="reassignConfirm">Delete & Reassign</button>
     </div>
   </div>
 </div>
@@ -745,8 +660,8 @@
 <div id="toast"></div>
 
 <script src="js/store.js"></script>
+<script src="js/classes.js"></script>
 <script src="js/schedule.js"></script>
-<script src="js/tasks.js"></script>
 <script src="js/week.js"></script>
 <script src="js/month.js"></script>
 <script src="js/stats.js"></script>

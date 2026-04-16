@@ -27,20 +27,13 @@ const Week = (() => {
       const dow = d.getDay();
       const isWeekend = dow === 0 || dow === 6;
       const blocks = Store.schedule[dk] || [];
-      const taskToday = Store.tasks.filter(t =>
-        t.status !== 'Done' && (t.due === dk || t.schedDate === dk)
-      );
 
-      const chips = [
-        ...blocks.slice(0, 4).map(b =>
-          `<div class="wk-chip">${Store.esc(b.label)}</div>`
-        ),
-        ...taskToday.slice(0, 4).map(t =>
-          `<div class="wk-chip cat-${t.category||'hw'}">${Store.esc(t.name)}</div>`
-        )
-      ];
-      const total = blocks.length + taskToday.length;
-      if (total > 8) chips.push(`<div class="wk-chip" style="color:var(--label3)">+${total - 8} more</div>`);
+      const chips = blocks.slice(0, 8).map(b => {
+        const clsColor = b.classLabel ? (Store.getClassColor(b.classLabel) || '') : '';
+        const style = clsColor ? ` style="border-left:3px solid ${clsColor}"` : '';
+        return `<div class="wk-chip"${style}>${Store.esc(b.label)}</div>`;
+      });
+      if (blocks.length > 8) chips.push(`<div class="wk-chip" style="color:var(--label3)">+${blocks.length - 8} more</div>`);
 
       return `
         <div class="wk-day${isToday ? ' wk-today' : ''}${isWeekend ? ' wk-weekend' : ''}"

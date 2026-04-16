@@ -1,5 +1,5 @@
 // ═════════════════════════════════════════════════════════
-// STATS — this week's time breakdown, task completion, etc
+// STATS — this week's time breakdown by type and by class
 // ═════════════════════════════════════════════════════════
 const Stats = (() => {
   const BLOCK_COLORS = {
@@ -30,33 +30,36 @@ const Stats = (() => {
     const weekDays = Store.weekDays(0, startDay);
     const weekKeys = weekDays.map(d => Store.toStr(d));
 
-    // Time by type across the week
     const byType = {};
+    const byClass = {};
     let totalMins = 0;
+    let totalBlocks = 0;
+    let withDue = 0;
+    let overdue = 0;
     weekKeys.forEach(dk => {
       const list = Store.schedule[dk] || [];
       list.forEach(b => {
         const m = minsOfBlock(b);
         byType[b.type || 'other'] = (byType[b.type || 'other'] || 0) + m;
         totalMins += m;
+        totalBlocks++;
+        if (b.classLabel) byClass[b.classLabel] = (byClass[b.classLabel] || 0) + m;
       });
     });
+
+    Object.values(Store.schedule).forEach(list => {
+      list.forEach(b => {
+        if (b.due) {
+          withDue++;
+          if (Store.daysUntil(b.due) < 0 && !b.done) overdue++;
+        }
+      });
+    });
+
     const sortedTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+    const sortedClasses = Object.entries(byClass).sort((a, b) => b[1] - a[1]);
+    const maxClassMins = sortedClasses.length ? sortedClasses[0][1] : 1;
 
-    // Task stats
-    const allTasks = Store.tasks.length;
-    const doneTasks = Store.tasks.filter(t => t.status === 'Done').length;
-    const progTasks = Store.tasks.filter(t => t.status === 'In progress').length;
-    const overdueTasks = Store.tasks.filter(t => {
-      if (t.status === 'Done' || !t.due) return false;
-      return Store.daysUntil(t.due) < 0;
-    }).length;
-    const todayTasks = Store.tasks.filter(t =>
-      t.status !== 'Done' && (t.due === Store.todayStr() || t.schedDate === Store.todayStr())
-    ).length;
-    const doneRate = allTasks ? Math.round((doneTasks / allTasks) * 100) : 0;
-
-    // Busy days this week
     const busiestDay = weekKeys.reduce((best, dk) => {
       const count = (Store.schedule[dk] || []).length;
       return count > best.count ? { dk, count } : best;
@@ -65,17 +68,7 @@ const Stats = (() => {
       ? new Date(busiestDay.dk + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' })
       : '—';
 
-    // Blocks today
     const blocksToday = (Store.schedule[Store.todayStr()] || []).length;
-
-    // Class distribution
-    const byClass = {};
-    Store.tasks.forEach(t => {
-      if (!t.classLabel) return;
-      byClass[t.classLabel] = (byClass[t.classLabel] || 0) + 1;
-    });
-    const sortedClasses = Object.entries(byClass).sort((a, b) => b[1] - a[1]);
-    const maxClass = sortedClasses.length ? sortedClasses[0][1] : 1;
 
     const fmtMins = m => {
       if (m === 0) return '0m';
@@ -88,31 +81,30 @@ const Stats = (() => {
     el.innerHTML = `
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">Tasks Today</div>
-          <div class="stat-value">${todayTasks}</div>
-          <div class="stat-sub">${blocksToday} scheduled blocks</div>
+          <div class="stat-label">Today</div>
+          <div class="stat-value">${blocksToday}</div>
+          <div class="stat-sub">blocks scheduled</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Completion Rate</div>
-          <div class="stat-value">${doneRate}%</div>
-          <div class="stat-sub">${doneTasks} of ${allTasks} done</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:${doneRate}%"></div></div>
+          <div class="stat-label">This Week</div>
+          <div class="stat-value">${totalBlocks}</div>
+          <div class="stat-sub">${totalH}h total</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Overdue</div>
-          <div class="stat-value" style="color:${overdueTasks > 0 ? 'var(--red)' : 'var(--label)'}">${overdueTasks}</div>
-          <div class="stat-sub">${progTasks} in progress</div>
+          <div class="stat-label">Assignments</div>
+          <div class="stat-value">${withDue}</div>
+          <div class="stat-sub">${overdue > 0 ? `<span style="color:var(--red)">${overdue} overdue</span>` : 'All on track'}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Weekly Time</div>
-          <div class="stat-value">${totalH}<span style="font-size:20px;color:var(--label3)">h</span></div>
-          <div class="stat-sub">Busiest: ${busiestLabel}</div>
+          <div class="stat-label">Busiest Day</div>
+          <div class="stat-value" style="font-size:22px;line-height:1.4">${busiestLabel}</div>
+          <div class="stat-sub">${busiestDay.count} block${busiestDay.count === 1 ? '' : 's'}</div>
         </div>
       </div>
 
       ${sortedTypes.length ? `
       <div class="stats-section">
-        <div class="stats-section-title">Time Breakdown (this week)</div>
+        <div class="stats-section-title">Time by Type (this week)</div>
         <div class="stats-breakdown">
           ${sortedTypes.map(([type, mins]) => {
             const pct = totalMins ? (mins / totalMins) * 100 : 0;
@@ -129,22 +121,23 @@ const Stats = (() => {
             `;
           }).join('')}
         </div>
-      </div>` : ''}
+      </div>` : `<div class="stats-empty">No blocks scheduled this week. Tap <strong>Quick Add</strong> or <strong>New Block</strong> to get started.</div>`}
 
       ${sortedClasses.length ? `
       <div class="stats-section">
-        <div class="stats-section-title">Tasks by Class</div>
+        <div class="stats-section-title">Time by Class (this week)</div>
         <div class="stats-breakdown">
-          ${sortedClasses.map(([cls, count]) => {
-            const pct = (count / maxClass) * 100;
+          ${sortedClasses.map(([cls, mins]) => {
+            const pct = (mins / maxClassMins) * 100;
+            const color = Store.getClassColor(cls) || '#8e8e93';
             return `
               <div class="breakdown-row">
-                <span class="breakdown-swatch" style="background:var(--blue)"></span>
+                <span class="breakdown-swatch" style="background:${color}"></span>
                 <span class="breakdown-name">${Store.esc(cls)}</span>
                 <div class="breakdown-bar">
-                  <div class="breakdown-bar-fill" style="width:${pct}%;background:var(--blue)"></div>
+                  <div class="breakdown-bar-fill" style="width:${pct}%;background:${color}"></div>
                 </div>
-                <span class="breakdown-value">${count}</span>
+                <span class="breakdown-value">${fmtMins(mins)}</span>
               </div>
             `;
           }).join('')}
