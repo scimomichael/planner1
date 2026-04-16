@@ -1,88 +1,115 @@
 const fs = require('fs');
 
-// ── 1. Patch js/schedule.js — fix scroll ─────────────────
+// ── 1. CSS — the real fix ─────────────────────────────────
+// The sched-wrap needs an explicit height so its absolute-
+// positioned children (axis + scroller) have something to fill.
+// We also override any old conflicting rules.
+let css = fs.readFileSync('css/app.css', 'utf8');
+
+// Remove any old scroll-related overrides we previously added
+css = css.replace(/\/\* sched-scroll-fix \*\/[\s\S]*?\.tz-select:focus\{border-color:var\(--blue\)\}/g, '');
+css = css.replace(/\/\* ── Schedule scroll fix[\s\S]*?\.sched-scroller::-webkit-scrollbar-thumb\{[^}]*\}/g, '');
+
+// Replace the existing sched-wrap definition
+css = css.replace(
+  '.sched-wrap{\n  background:var(--surf);\n  border:1px solid var(--b1);\n  border-radius:var(--r-md);\n  overflow:hidden;\n  position:relative;\n}',
+  '.sched-wrap{\n  background:var(--surf);\n  border:1px solid var(--b1);\n  border-radius:var(--r-md);\n  overflow:hidden;\n  position:relative;\n  height:calc(100vh - 320px);\n  min-height:400px;\n}'
+);
+
+// Also handle compact version (no newlines)
+css = css.replace(
+  '.sched-wrap{background:var(--surf);border:1px solid var(--b1);border-radius:var(--r-md);overflow:hidden;position:relative}',
+  '.sched-wrap{background:var(--surf);border:1px solid var(--b1);border-radius:var(--r-md);overflow:hidden;position:relative;height:calc(100vh - 320px);min-height:400px}'
+);
+
+// Ensure the axis and scroller CSS is correct
+// Remove old axis definition and re-add correctly
+css = css.replace(/\.sched-axis\{[\s\S]*?z-index:\d;pointer-events:none;\}/g, '');
+css = css.replace(/\.sched-axis\{[^}]*\}/g, '');
+
+// Append all needed scroll CSS
+const scrollCss = `
+/* ── Schedule scroll (authoritative) ───────────────────── */
+.sched-wrap{position:relative;overflow:hidden}
+.sched-wrap.sched-full{height:calc(100vh - 220px);min-height:500px}
+.sched-axis{
+  position:absolute;top:0;left:0;bottom:0;width:68px;
+  background:var(--surf2);border-right:1px solid var(--b0);
+  z-index:3;pointer-events:none;overflow:hidden;
+}
+.sched-scroller{
+  position:absolute;top:0;left:68px;right:0;bottom:0;
+  overflow-y:scroll;overflow-x:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:var(--b2) transparent;
+}
+.sched-scroller::-webkit-scrollbar{width:5px}
+.sched-scroller::-webkit-scrollbar-track{background:transparent}
+.sched-scroller::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+`;
+
+if (!css.includes('Schedule scroll (authoritative)')) {
+  css += scrollCss;
+}
+
+fs.writeFileSync('css/app.css', css, 'utf8');
+console.log('✅ css/app.css');
+
+// ── 2. index.html — remove any inline height styles ───────
+let html = fs.readFileSync('index.html', 'utf8');
+
+// Remove old inline heights we added before (let CSS handle it)
+html = html.replace(' style="height:480px"', '');
+html = html.replace(' style="height:600px"', '');
+
+fs.writeFileSync('index.html', html, 'utf8');
+console.log('✅ index.html (removed old inline heights)');
+
+// ── 3. js/schedule.js — fix render to set wrap height ─────
 let sched = fs.readFileSync('js/schedule.js', 'utf8');
 
-// Ensure wrap gets an explicit height before building scroller
-const oldPos = `    wrap.style.position = 'relative';`;
-const newPos = `    wrap.style.position = 'relative';
-    if (!wrap.style.height || wrap.style.height === '' || wrap.style.height === 'auto') {
-      wrap.style.height = (gridId === 'schedGrid') ? '480px' : '600px';
-    }`;
-if (sched.includes(oldPos) && !sched.includes('480px')) {
-  sched = sched.replace(oldPos, newPos);
-  console.log('✅ height fallback added');
-}
+// Remove old height-check code we added before
+sched = sched.replace(
+  /\/\/ Ensure fixed height so scroller can fill it\s*if \(!wrap\.style\.height[^}]+\}\s*/g,
+  ''
+);
+sched = sched.replace(
+  /\/\/ Fixed height wrapper[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n/g,
+  ''
+);
 
-// Fix auto-scroll: use double rAF so clientHeight is accurate after layout
-if (sched.includes('requestAnimationFrame(() => {') && !sched.includes('requestAnimationFrame(() => requestAnimationFrame')) {
-  sched = sched.replace(
-    'requestAnimationFrame(() => {',
-    'requestAnimationFrame(() => requestAnimationFrame(() => {'
-  );
-  // Close the extra wrapper — find the scrollTop line and add extra closing
-  sched = sched.replace(
-    'scroller.scrollTop = Math.max(0, scrollTo);
-      });',
-    'scroller.scrollTop = Math.max(0, scrollTo);
-      }));'
-  );
-  console.log('✅ double rAF applied');
-}
+// Remove old wrap.style.height line if present
+sched = sched.replace(/\s*wrap\.style\.height = [^\n]+\n/g, '\n');
 
-// Same for the pattern with rawTop/half variable names
-if (sched.includes('requestAnimationFrame(() => {') && !sched.includes('requestAnimationFrame(() => requestAnimationFrame')) {
-  sched = sched.replace(
-    'requestAnimationFrame(() => {',
-    'requestAnimationFrame(() => requestAnimationFrame(() => {'
-  );
-  sched = sched.replace(
-    'scroller.scrollTop = Math.max(0, rawTop - half);
-      });',
-    'scroller.scrollTop = Math.max(0, rawTop - half);
-      }));'
-  );
-  console.log('✅ double rAF applied (rawTop pattern)');
-}
+// Replace single rAF with double rAF for reliable scroll
+// Pattern 1: scrollTo variable
+sched = sched.replace(
+  /requestAnimationFrame\(\(\) => \{\s*const now\s*=\s*new Date\(\);/,
+  'requestAnimationFrame(() => requestAnimationFrame(() => {\n        const now = new Date();'
+);
+sched = sched.replace(
+  /scroller\.scrollTop = Math\.max\(0, scrollTo\);\s*\}\);\s*\}/,
+  'scroller.scrollTop = Math.max(0, scrollTo);\n      }));\n    }'
+);
+
+// Pattern 2: rawTop/half variables  
+sched = sched.replace(
+  /requestAnimationFrame\(\(\) => \{\s*const now\s*=\s*new Date\(\);\s*const nowM/,
+  'requestAnimationFrame(() => requestAnimationFrame(() => {\n        const now = new Date();\n        const nowM'
+);
+sched = sched.replace(
+  /scroller\.scrollTop = Math\.max\(0, rawTop - half\);\s*\}\);\s*\}/,
+  'scroller.scrollTop = Math.max(0, rawTop - half);\n      }));\n    }'
+);
+
+// If we already have double rAF, don't double-wrap again
+// (idempotent check)
+sched = sched.replace(
+  /requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => requestAnimationFrame/g,
+  'requestAnimationFrame(() => requestAnimationFrame'
+);
 
 fs.writeFileSync('js/schedule.js', sched, 'utf8');
 console.log('✅ js/schedule.js');
-
-// ── 2. Patch css/app.css ──────────────────────────────────
-let css = fs.readFileSync('css/app.css', 'utf8');
-if (!css.includes('sched-scroll-fix')) {
-  // Remove any conflicting .sched-wrap overflow rules first
-  css = css.replace('.sched-wrap{overflow:hidden}', '');
-  css = css.replace('.sched-wrap{overflow:hidden;position:relative}', '');
-  css += "\n/* sched-scroll-fix */\n.sched-wrap{position:relative;overflow:hidden}\n.sched-axis{\n  position:absolute;top:0;left:0;width:68px;\n  background:var(--surf2);border-right:1px solid var(--b0);\n  z-index:3;pointer-events:none;\n}\n.sched-scroller{\n  position:absolute;top:0;left:68px;right:0;bottom:0;\n  overflow-y:auto;overflow-x:hidden;\n  scrollbar-width:thin;\n  scrollbar-color:var(--b2) transparent;\n}\n.sched-scroller::-webkit-scrollbar{width:4px}\n.sched-scroller::-webkit-scrollbar-track{background:transparent}\n.sched-scroller::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}\n";
-  fs.writeFileSync('css/app.css', css, 'utf8');
-  console.log('✅ css/app.css scroll styles');
-} else {
-  console.log('⏭  css already patched');
-}
-
-// ── 3. Patch index.html — add explicit height to sched boxes ─
-let html = fs.readFileSync('index.html', 'utf8');
-let changed = false;
-if (!html.includes('schedGrid" class="sched-wrap" style=') && !html.includes('schedGrid" class="sched-wrap sched')) {
-  html = html.replace(
-    '<div id="schedGrid" class="sched-wrap"></div>',
-    '<div id="schedGrid" class="sched-wrap" style="height:480px"></div>'
-  );
-  changed = true;
-}
-if (!html.includes('schedFullGrid" class="sched-wrap sched-full" style=')) {
-  html = html.replace(
-    '<div id="schedFullGrid" class="sched-wrap sched-full"></div>',
-    '<div id="schedFullGrid" class="sched-wrap sched-full" style="height:600px"></div>'
-  );
-  changed = true;
-}
-if (changed) {
-  fs.writeFileSync('index.html', html, 'utf8');
-  console.log('✅ index.html heights added');
-} else {
-  console.log('⏭  index.html already has heights');
-}
 
 console.log('\n✅ Done. Delete patch.js from your repo.');
