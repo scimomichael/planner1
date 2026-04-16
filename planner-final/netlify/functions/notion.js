@@ -1,4 +1,3 @@
-// Notion proxy — token stays server-side, never in the browser
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_ID = process.env.NOTION_DATABASE_ID || "24df8257bb1581908084ec8bde52cf72";
 
@@ -35,6 +34,16 @@ const mapItem = (p) => ({
   notionUrl: p.url,
 });
 
+// Only keep tasks that are due within the last 7 days or in the future,
+// OR have no due date at all (undated tasks are always shown)
+function isRelevant(item) {
+  if (!item.due) return true;
+  const due = new Date(item.due + "T00:00:00");
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7); // 7 days ago
+  return due >= cutoff;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: CORS };
 
@@ -44,22 +53,51 @@ exports.handler = async (event) => {
 
   try {
 
-    // LIST: auto-imports Not started + In progress only.
-    // Also fetches Done so the website can show a Done column.
+    // LIST — only Not started + In progress, filtered to recent/upcoming
+    // Done tasks fetched separately for the Done column display
     if (action === "list") {
       const [activeRes, doneRes] = await Promise.all([
         notion(`/databases/${DB_ID}/query`, "POST", {
           filter: {
-            or: [
-              { property: "Status", status: { equals: "Not started" } },
-              { property: "Status", status: { equals: "In progress" } },
+            and: [
+              {
+                or: [
+                  { property: "Status", status: { equals: "Not started" } },
+                  { property: "Status", status: { equals: "In progress" } },
+                ],
+              },
+              // Only pull tasks with no due date, or due date within last 7 days or future
+              {
+                or: [
+                  { property: "Due date", date: { is_empty: true } },
+                  { property: "Due date", date: { on_or_after: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - 7);
+                    return d.toISOString().slice(0, 10);
+                  })() }},
+                ],
+              },
             ],
           },
           sorts: [{ property: "Due date", direction: "ascending" }],
           page_size: 100,
         }),
         notion(`/databases/${DB_ID}/query`, "POST", {
-          filter: { property: "Status", status: { equals: "Done" } },
+          filter: {
+            and: [
+              { property: "Status", status: { equals: "Done" } },
+              {
+                or: [
+                  { property: "Due date", date: { is_empty: true } },
+                  { property: "Due date", date: { on_or_after: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - 14);
+                    return d.toISOString().slice(0, 10);
+                  })() }},
+                ],
+              },
+            ],
+          },
           sorts: [{ property: "Due date", direction: "descending" }],
           page_size: 50,
         }),
@@ -69,7 +107,7 @@ exports.handler = async (event) => {
         statusCode: 200,
         headers: CORS,
         body: JSON.stringify({
-          items: (activeRes.results || []).map(mapItem),
+          items: (activeRes.results || []).map(mapItem).filter(isRelevant),
           done:  (doneRes.results  || []).map(mapItem),
         }),
       };
