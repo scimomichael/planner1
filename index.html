@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="root">
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo"></div>
+      <span class="sb-title">Planner</span>
+    </div>
+
+    <nav class="sb-nav">
+      <button class="nav-item active" data-view="today" onclick="App.nav('today')">
+        <svg viewBox="0 0 18 18" fill="none"><rect x="1.5" y="2.5" width="15" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7h15" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.5v2M12 1.5v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Today
+      </button>
+      <button class="nav-item" data-view="schedule" onclick="App.nav('schedule')">
+        <svg viewBox="0 0 18 18" fill="none"><path d="M9 1.5v15M1.5 9h15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="9" r="7.5" stroke="currentColor" stroke-width="1.5"/></svg>
+        Schedule
+      </button>
+      <button class="nav-item" data-view="week" onclick="App.nav('week')">
+        <svg viewBox="0 0 18 18" fill="none"><rect x="1.5" y="2.5" width="15" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7h15M6 1.5v2M12 1.5v2M5 10.5h2.5M5 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Week
+      </button>
+      <button class="nav-item" data-view="tasks" onclick="App.nav('tasks')">
+        <svg viewBox="0 0 18 18" fill="none"><path d="M2.5 5h13M2.5 9h9M2.5 13h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        All Tasks
+      </button>
+    </nav>
+
+    <div class="sb-legend">
+      <div class="legend-title">Categories</div>
+      <div class="legend-item"><span class="cat-dot hw"></span>Homework</div>
+      <div class="legend-item"><span class="cat-dot test"></span>Test / Major</div>
+      <div class="legend-item"><span class="cat-dot ec"></span>Extracurricular</div>
+      <div class="legend-item"><span class="cat-dot personal"></span>Personal</div>
+    </div>
+
+    <div class="sb-foot">
+      <div class="sync-indicator">
+        <span class="sync-dot" id="syncDot"></span>
+        <span id="syncLabel">—</span>
+      </div>
+      <button class="sync-btn" onclick="Notion.sync()">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M14 2.5C12.3 1 10.3.5 8 .5 4 .5 1 3.5 1 7.5M2 13.5C3.7 15 5.7 15.5 8 15.5c4 0 7-3 7-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M14 2.5v3h-3M2 13.5v-3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Sync Notion
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="main">
+
+    <!-- TODAY -->
+    <div class="view active" id="view-today">
+      <div class="view-head">
+        <div>
+          <h1 id="todayHeading">Today</h1>
+          <p class="view-sub" id="todayDate"></p>
+        </div>
+        <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+      </div>
+
+      <div class="focus-bar">
+        <label class="focus-label">Focus</label>
+        <input id="focusInput" class="focus-input" placeholder="What's the one thing you must accomplish today?" oninput="Store.saveFocus()">
+      </div>
+
+      <div class="today-grid">
+        <div class="today-schedule">
+          <div class="panel-head">
+            <h2>Schedule</h2>
+            <div class="day-nav">
+              <button onclick="Schedule.shift(-1)">‹</button>
+              <span id="scheduleLabel"></span>
+              <button onclick="Schedule.shift(1)">›</button>
+            </div>
+          </div>
+          <div id="scheduleGrid" class="schedule-grid"></div>
+        </div>
+
+        <div class="today-tasks">
+          <div class="panel-head">
+            <h2>Due soon</h2>
+            <button class="btn-link" onclick="App.nav('tasks')">All tasks →</button>
+          </div>
+          <div id="dueSoon"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE FULL VIEW -->
+    <div class="view" id="view-schedule">
+      <div class="view-head">
+        <div>
+          <h1>Schedule</h1>
+          <p class="view-sub" id="scheduleFullLabel"></p>
+        </div>
+        <div class="view-head-right">
+          <button class="btn-icon" onclick="Schedule.shiftFull(-1)">‹</button>
+          <button class="btn-icon" onclick="Schedule.shiftFull(1)">›</button>
+          <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+        </div>
+      </div>
+      <div id="scheduleFullGrid" class="schedule-grid schedule-grid-full"></div>
+    </div>
+
+    <!-- WEEK -->
+    <div class="view" id="view-week">
+      <div class="view-head">
+        <div>
+          <h1>Week</h1>
+          <p class="view-sub" id="weekLabel"></p>
+        </div>
+        <div class="view-head-right">
+          <button class="btn-icon" onclick="Week.shift(-1)">‹</button>
+          <button class="btn-icon" onclick="Week.shift(1)">›</button>
+          <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+        </div>
+      </div>
+      <div id="weekGrid" class="week-grid"></div>
+    </div>
+
+    <!-- TASKS -->
+    <div class="view" id="view-tasks">
+      <div class="view-head">
+        <div>
+          <h1>All Tasks</h1>
+          <p class="view-sub">Read from Notion · status changes saved locally</p>
+        </div>
+        <div class="view-head-right">
+          <select class="filter-select" id="filterCat" onchange="Tasks.render()">
+            <option value="">All categories</option>
+            <option value="hw">Homework</option>
+            <option value="test">Test / Major</option>
+            <option value="ec">Extracurricular</option>
+            <option value="personal">Personal</option>
+          </select>
+          <select class="filter-select" id="filterClass" onchange="Tasks.render()">
+            <option value="">All classes</option>
+            <option>AP Language</option>
+            <option>AP Biology</option>
+            <option>AP US History</option>
+            <option>Honors Spanish IV</option>
+            <option>Precalculus</option>
+            <option>Congressional Debate</option>
+            <option>Harvard Pre-College</option>
+          </select>
+          <button class="btn-primary" onclick="TaskModal.open()">+ New task</button>
+        </div>
+      </div>
+      <div id="kanban" class="kanban"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-backdrop" id="taskBackdrop" onclick="TaskModal.backdropClick(event)">
+  <div class="modal" id="taskModal">
+    <div class="modal-head">
+      <span id="modalHeading">New task</span>
+      <button class="modal-close" onclick="TaskModal.close()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input class="m-input large" id="tName" placeholder="Task name" autocomplete="off">
+
+      <div class="m-field">
+        <div class="m-label">Category</div>
+        <div class="cat-picker" id="catPicker">
+          <button class="cat-opt active hw" data-cat="hw" onclick="TaskModal.pickCat('hw')"><span class="cat-dot hw"></span>Homework</button>
+          <button class="cat-opt test" data-cat="test" onclick="TaskModal.pickCat('test')"><span class="cat-dot test"></span>Test / Major</button>
+          <button class="cat-opt ec" data-cat="ec" onclick="TaskModal.pickCat('ec')"><span class="cat-dot ec"></span>Extracurricular</button>
+          <button class="cat-opt personal" data-cat="personal" onclick="TaskModal.pickCat('personal')"><span class="cat-dot personal"></span>Personal</button>
+        </div>
+      </div>
+
+      <div class="m-row">
+        <div class="m-field">
+          <div class="m-label">Class</div>
+          <select class="m-select" id="tClass">
+            <option value="">None</option>
+            <option>AP Language</option>
+            <option>AP Biology</option>
+            <option>AP US History</option>
+            <option>Honors Spanish IV</option>
+            <option>Precalculus</option>
+            <option>Congressional Debate</option>
+            <option>Harvard Pre-College</option>
+            <option>Personal</option>
+          </select>
+        </div>
+        <div class="m-field">
+          <div class="m-label">Status</div>
+          <select class="m-select" id="tStatus">
+            <option>Not started</option>
+            <option>In progress</option>
+            <option>Done</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="m-row">
+        <div class="m-field">
+          <div class="m-label">Due date</div>
+          <input class="m-input" type="date" id="tDue">
+        </div>
+        <div class="m-field">
+          <div class="m-label">Est. time</div>
+          <input class="m-input" id="tEst" placeholder="e.g. 2h 30m">
+        </div>
+      </div>
+
+      <div class="m-field">
+        <div class="m-label">Priority</div>
+        <div class="pri-picker" id="priPicker">
+          <button class="pri-opt" data-p="low" onclick="TaskModal.pickPri('low')">Low</button>
+          <button class="pri-opt active medium" data-p="medium" onclick="TaskModal.pickPri('medium')">Medium</button>
+          <button class="pri-opt" data-p="high" onclick="TaskModal.pickPri('high')">High</button>
+        </div>
+      </div>
+
+      <div class="m-field">
+        <div class="m-label">Notes</div>
+        <textarea class="m-input m-textarea" id="tNotes" placeholder="Any notes or details..." rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="TaskModal.close()">Cancel</button>
+      <button class="btn-primary" id="modalSave" onclick="TaskModal.save()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK MODAL -->
+<div class="modal-backdrop" id="blockBackdrop" onclick="BlockModal.backdropClick(event)">
+  <div class="modal modal-sm" id="blockModal">
+    <div class="modal-head">
+      <span id="blockModalHeading">Add block</span>
+      <button class="modal-close" onclick="BlockModal.close()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input class="m-input large" id="bLabel" placeholder="What are you doing?" autocomplete="off">
+      <div class="m-row" style="margin-top:14px">
+        <div class="m-field">
+          <div class="m-label">Start</div>
+          <input class="m-input" type="time" id="bStart">
+        </div>
+        <div class="m-field">
+          <div class="m-label">End</div>
+          <input class="m-input" type="time" id="bEnd">
+        </div>
+      </div>
+      <div class="m-field" style="margin-top:14px">
+        <div class="m-label">Type</div>
+        <div class="block-type-grid" id="blockTypeGrid"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="BlockModal.close()">Cancel</button>
+      <button class="btn-primary" onclick="BlockModal.save()">Add block</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/store.js"></script>
+<script src="js/notion.js"></script>
+<script src="js/schedule.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/week.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

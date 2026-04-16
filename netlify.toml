@@ -1,8 +1,14 @@
 [build]
-  publish = "planner-final"
-  functions = "planner-final/netlify/functions"
+  publish = "."
+  functions = "netlify/functions"
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
