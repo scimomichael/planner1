@@ -182,8 +182,7 @@ const AI = (() => {
             if (!a.date || !a.start) break;
             const blockType = a.blockType || a.type_hint || 'study';
             const css = Sched.getBlockTypes().find(t => t.id === blockType)?.css || 'sb-other';
-            if (!Store.schedule[a.date]) Store.schedule[a.date] = [];
-            Store.schedule[a.date].push({
+            Sched.addBlock(a.date, {
               label: a.label || blockType,
               type: blockType,
               css,
@@ -195,6 +194,11 @@ const AI = (() => {
               storedTz: Sched.getLocalTz(),
               recur: a.recur || null,
               recurUntil: a.recurUntil || null,
+              priority: a.priority || '',
+              reminder: a.reminder || null,
+              location: a.location || '',
+              link: a.link || '',
+              status: 'scheduled',
               done: false,
             });
             applied++;
@@ -203,14 +207,15 @@ const AI = (() => {
           case 'update_block': {
             const list = Store.schedule[a.date];
             if (list && list[a.index]) {
-              const b = list[a.index];
-              ['label','start','end','due','classLabel','description','recur','recurUntil','done'].forEach(k => {
+              const b = { ...list[a.index] };
+              ['label','start','end','due','classLabel','description','recur','recurUntil','done','priority','reminder','location','link','status'].forEach(k => {
                 if (a[k] !== undefined) b[k] = a[k];
               });
               if (a.blockType) {
                 b.type = a.blockType;
                 b.css = Sched.getBlockTypes().find(t => t.id === a.blockType)?.css || 'sb-other';
               }
+              Sched.updateBlock(a.date, a.index, b);
               applied++;
             }
             break;
@@ -218,28 +223,26 @@ const AI = (() => {
           case 'move_block': {
             const list = Store.schedule[a.fromDate];
             if (list && list[a.fromIndex]) {
-              const b = list[a.fromIndex];
-              list.splice(a.fromIndex, 1);
-              if (a.toDate) {
-                if (!Store.schedule[a.toDate]) Store.schedule[a.toDate] = [];
-                if (a.newStart) b.start = a.newStart;
-                if (a.newEnd) b.end = a.newEnd;
-                Store.schedule[a.toDate].push(b);
-              }
+              const b = { ...list[a.fromIndex] };
+              if (a.newStart) b.start = a.newStart;
+              if (a.newEnd) b.end = a.newEnd;
+              Sched.removeBlock(a.fromDate, a.fromIndex);
+              if (a.toDate) Sched.addBlock(a.toDate, b);
               applied++;
             }
             break;
           }
           case 'delete_block': {
             const list = Store.schedule[a.date];
-            if (list && list[a.index] !== undefined) { list.splice(a.index, 1); applied++; }
+            if (list && list[a.index] !== undefined) {
+              Sched.removeBlock(a.date, a.index);
+              applied++;
+            }
             break;
           }
           case 'set_focus': {
             if (a.date && typeof a.text === 'string') {
-              const fm = JSON.parse(localStorage.getItem('pl3_focus') || '{}');
-              fm[a.date] = a.text;
-              localStorage.setItem('pl3_focus', JSON.stringify(fm));
+              Store.setFocus(a.date, a.text);
               applied++;
             }
             break;
@@ -268,10 +271,9 @@ const AI = (() => {
               delete copy._recurFrom;
               delete copy._recurBaseIdx;
               const targetDate = a.toDate || a.date;
-              if (!Store.schedule[targetDate]) Store.schedule[targetDate] = [];
               if (a.newStart) copy.start = a.newStart;
               if (a.newEnd) copy.end = a.newEnd;
-              Store.schedule[targetDate].push(copy);
+              Sched.addBlock(targetDate, copy);
               applied++;
             }
             break;
@@ -282,8 +284,7 @@ const AI = (() => {
                 if (!b.date || !b.start) continue;
                 const blockType = b.blockType || b.type || 'study';
                 const css = Sched.getBlockTypes().find(t => t.id === blockType)?.css || 'sb-other';
-                if (!Store.schedule[b.date]) Store.schedule[b.date] = [];
-                Store.schedule[b.date].push({
+                Sched.addBlock(b.date, {
                   label: b.label || blockType,
                   type: blockType,
                   css,
@@ -295,6 +296,11 @@ const AI = (() => {
                   storedTz: Sched.getLocalTz(),
                   recur: b.recur || null,
                   recurUntil: b.recurUntil || null,
+                  priority: b.priority || '',
+                  reminder: b.reminder || null,
+                  location: b.location || '',
+                  link: b.link || '',
+                  status: 'scheduled',
                   done: false,
                 });
                 applied++;

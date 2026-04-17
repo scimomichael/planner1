@@ -88,6 +88,17 @@ const Store = (() => {
     ls.set('focus', focusMap);
     _queuePush();
   }
+  function setFocus(date, text) {
+    if (!date) return;
+    focusMap[date] = text || '';
+    ls.set('focus', focusMap);
+    _queuePush();
+    // If editing today's focus, update the visible input
+    if (date === todayStr()) {
+      const el = document.getElementById('focusInput');
+      if (el) el.value = focusMap[date];
+    }
+  }
   function loadFocus() {
     const el = document.getElementById('focusInput');
     if (el) el.value = focusMap[todayStr()] || '';
@@ -331,7 +342,7 @@ const Store = (() => {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
     persist, snapshot, undo, redo,
-    saveFocus, loadFocus, pull,
+    saveFocus, loadFocus, setFocus, pull,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays, monthDays,
     duePill, clsPill, esc, toast,
     clearSchedule, clearTemplates,
