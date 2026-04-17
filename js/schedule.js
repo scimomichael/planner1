@@ -79,6 +79,17 @@ const Sched = (() => {
   }
 
   let offset = 0, fullOffset = 0;
+  // Track which grids have completed their initial auto-scroll-to-now so
+  // subsequent renders (e.g. after saving a block edit) don't yank the user
+  // back to the current time. Keyed by `gridId|dk` so switching days still
+  // re-centers once on the new day.
+  const _initDone = {};
+  // When non-null, the next render of that grid should scroll this block
+  // back into view instead of auto-centering. Consumed on use.
+  let _scrollAnchor = null; // { gridId, dk, bi } | null
+  // When non-null, this scrollTop value should be restored on the next
+  // render of the given gridId. Consumed on use.
+  const _preservedScroll = {}; // { gridId: number }
   function dateFor(off) { const d = new Date(Store.today()); d.setDate(d.getDate() + off); return d; }
   function dayLabel(d) {
     const n = Store.daysUntil(Store.toStr(d));
@@ -275,7 +286,7 @@ const Sched = (() => {
         ? `<span class="sched-block-pri pri-${b.priority}" title="Priority: ${b.priority}"></span>` : '';
       const showLocation = !Settings.get || Settings.get('sBlockLocation', true);
       const locChip = (showLocation && b.location)
-        ? `<div class="sched-block-loc" title="${Store.esc(b.location)}"><svg viewBox="0 0 10 12" fill="none"><path d="M5 1a3.5 3.5 0 013.5 3.5c0 2.6-3.5 6.5-3.5 6.5S1.5 7.1 1.5 4.5A3.5 3.5 0 015 1z" stroke="currentColor" stroke-width="1.1" fill="none"/><circle cx="5" cy="4.5" r="1.2" fill="currentColor"/></svg>${Store.esc(b.location)}</div>` : '';
+        ? `<div class="sched-block-loc" title="${Store.esc(b.location)}"><svg viewBox="0 0 10 12" fill="none"><path d="M5 1a3.5 3.5 0 013.5 3.5c0 2.6-3.5 6.5-3.5 6.5S1.5 7.1 1.5 4.5A3.5 3.5 0 015 1z" stroke="currentColor" stroke-width="1.1" fill="none"/><circle cx="5" cy="4.5" r="1.2" fill="currentColor"/></svg><span class="sched-block-loc-text">${Store.esc(b.location)}</span></div>` : '';
       const showLink = !Settings.get || Settings.get('sBlockLink', true);
       const linkChip = (showLink && b.link)
         ? `<a class="sched-block-link" href="${Store.esc(b.link)}" target="_blank" rel="noopener noreferrer" title="${Store.esc(b.link)}" onclick="event.stopPropagation()"><svg viewBox="0 0 12 12" fill="none"><path d="M5 3h2a3 3 0 010 6H6M7 9H5a3 3 0 010-6h1M4.5 6h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></a>` : '';
@@ -290,18 +301,27 @@ const Sched = (() => {
       block.style.width = `calc(${widthPct}% - 8px)`;
       block.dataset.dk = dk;
       block.dataset.bi = bi;
+      // Blocks under ~60px tall can only fit the title + time row.
+      // Everything else gets hidden to prevent overlap.
+      if (height < 60) block.dataset.short = '1';
+
+      // Build the inner HTML. Everything other than the name row + time
+      // goes into .sched-block-extras which the CSS hides on short blocks.
+      const extras = [
+        classPill,
+        statusBadge,
+        tzNote,
+        dueHtml,
+        locChip,
+        descSnip,
+      ].filter(Boolean).join('');
 
       block.innerHTML = `
         <div class="sched-block-check${b.done ? ' done' : ''}" data-act="check"></div>
         ${recurBadge}
-        <div class="sched-block-name">${priDot}${Store.esc(b.label)}${linkChip}</div>
+        <div class="sched-block-name">${priDot}<span class="sched-block-name-text">${Store.esc(b.label)}</span>${linkChip}</div>
         ${timeDisp ? `<div class="sched-block-time">${timeDisp}</div>` : ''}
-        ${classPill}
-        ${statusBadge}
-        ${tzNote}
-        ${dueHtml}
-        ${locChip}
-        ${descSnip}
+        ${extras ? `<div class="sched-block-extras">${extras}</div>` : ''}
         <div class="sched-block-resize" data-act="resize"></div>
       `;
 
@@ -314,11 +334,37 @@ const Sched = (() => {
     scroller.appendChild(inner);
     box.appendChild(scroller);
 
-    // Auto-scroll so the current time lands roughly in the middle of the
-    // viewport. Applies on today (both compact and full-day views).
+    // Scroll behavior:
+    //   1. If a specific scrollTop was preserved for this grid (e.g. the
+    //      user just saved an edit), restore it — never yank the view.
+    //   2. Else if an anchor block is set (we just saved an edit to that
+    //      block), scroll that block back into view.
+    //   3. Else if this is the first time we've rendered this grid for
+    //      this date, center on "now" (today) or top (other days).
+    //   4. Otherwise leave scroll where the user put it.
+    const initKey = `${gridId}|${dk}`;
+    const preservedTop = _preservedScroll[gridId];
     const isTodayDate = (off === 0);
-    if (isTodayDate && Settings.get('sAutoScroll', true)) {
-      requestAnimationFrame(() => requestAnimationFrame(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (preservedTop !== undefined) {
+        scroller.scrollTop = preservedTop;
+        delete _preservedScroll[gridId];
+        return;
+      }
+      if (_scrollAnchor && _scrollAnchor.gridId === gridId && _scrollAnchor.dk === dk) {
+        const anchorBi = _scrollAnchor.bi;
+        const el = canvas.querySelector(`.sched-block[data-bi="${anchorBi}"]`);
+        if (el) {
+          const top = parseFloat(el.style.top) || 0;
+          const target = top - scroller.clientHeight / 2 + (parseFloat(el.style.height) || 0) / 2;
+          scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
+        }
+        _scrollAnchor = null;
+        return;
+      }
+      if (_initDone[initKey]) return; // user has scrolled, leave alone
+      _initDone[initKey] = true;
+      if (isTodayDate && Settings.get('sAutoScroll', true)) {
         const now = new Date();
         const nowM = now.getHours() * 60 + now.getMinutes();
         const startM = HOURS[0] * 60;
@@ -327,8 +373,8 @@ const Sched = (() => {
         const pct = Math.max(0, (adjM - startM) / (TOTAL_SLOTS * SLOT_MIN));
         const target = pct * totalH - scroller.clientHeight / 2;
         scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
-      }));
-    }
+      }
+    }));
   }
 
   // Check if a recurring block recurs on target date
@@ -500,6 +546,7 @@ const Sched = (() => {
       Store.snapshot();
       src[b._recurBaseIdx] = { ...src[b._recurBaseIdx], ...changes };
       Store.persist();
+      _preserveScroll();
       renderBoth();
     } else {
       const list = Store.schedule[dk];
@@ -507,6 +554,7 @@ const Sched = (() => {
       Store.snapshot();
       list[bi] = { ...list[bi], ...changes };
       Store.persist();
+      _preserveScroll();
       renderBoth();
     }
   }
@@ -520,6 +568,7 @@ const Sched = (() => {
       sb.doneOverrides = sb.doneOverrides || {};
       sb.doneOverrides[dk] = !sb.doneOverrides[dk];
       Store.persist();
+      _preserveScroll();
       renderBoth();
     } else {
       const list = Store.schedule[dk];
@@ -527,6 +576,7 @@ const Sched = (() => {
       Store.snapshot();
       list[bi].done = !list[bi].done;
       Store.persist();
+      _preserveScroll();
       renderBoth();
     }
   }
@@ -538,11 +588,31 @@ const Sched = (() => {
     }
   }
 
+  // Snapshot each visible scroller's scrollTop so the next render can
+  // restore it. Call this BEFORE mutating + renderBoth.
+  function _preserveScroll() {
+    ['schedGrid', 'schedFullGrid'].forEach(gid => {
+      const box = document.getElementById(gid);
+      const sc = box && box.querySelector('.sched-scroll');
+      if (sc) _preservedScroll[gid] = sc.scrollTop;
+    });
+  }
+
+  // Ask the next render to bring (dk, bi) back into view if possible.
+  function _anchorToBlock(dk, bi) {
+    _scrollAnchor = { gridId: 'schedGrid', dk, bi };
+    // If the full-schedule view is currently showing, anchor that too.
+    if (document.getElementById('view-schedule')?.classList.contains('active')) {
+      _scrollAnchor = { gridId: 'schedFullGrid', dk, bi };
+    }
+  }
+
   function addBlock(dk, block) {
     Store.snapshot();
     if (!Store.schedule[dk]) Store.schedule[dk] = [];
     Store.schedule[dk].push(block);
     Store.persist();
+    _preserveScroll();
     renderBoth();
   }
 
@@ -551,6 +621,8 @@ const Sched = (() => {
     Store.snapshot();
     Store.schedule[dk][bi] = block;
     Store.persist();
+    _preserveScroll();
+    _anchorToBlock(dk, bi);
     renderBoth();
   }
 
@@ -559,6 +631,7 @@ const Sched = (() => {
     Store.snapshot();
     Store.schedule[dk].splice(bi, 1);
     Store.persist();
+    _preserveScroll();
     renderBoth();
   }
 

@@ -117,6 +117,31 @@ const App = (() => {
         Sched.renderBoth();
       }
     }, 60000);
+
+    // Pull-on-focus: when the user switches back to this tab (common when
+    // flipping from Mac to iPad or back), pull fresh data from the server
+    // so changes made on another device show up without a manual refresh.
+    let _lastFocusPull = 0;
+    window.addEventListener('focus', async () => {
+      if (Date.now() - _lastFocusPull < 3000) return;
+      _lastFocusPull = Date.now();
+      const changed = await Store.pull();
+      if (changed) refresh();
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - _lastFocusPull < 3000) return;
+      _lastFocusPull = Date.now();
+      const changed = await Store.pull();
+      if (changed) refresh();
+    });
+    // Periodic background pull every 60s as a safety net.
+    setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      const changed = await Store.pull();
+      if (changed) refresh();
+    }, 60000);
+
     nav('today');
   }
 

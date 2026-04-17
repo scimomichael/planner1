@@ -1,39 +1,41 @@
 // ═════════════════════════════════════════════════════════
 // AI — chat panel, send to /api/chat, execute actions
+// History is ephemeral: cleared on every open/close of the panel.
 // ═════════════════════════════════════════════════════════
 const AI = (() => {
-  const LS_HIST = 'pl3_aiHist';
+  // In-memory only — intentionally NOT persisted to localStorage.
   let history = [];
-  try { history = JSON.parse(localStorage.getItem(LS_HIST)) || []; } catch { history = []; }
+
+  const WELCOME = {
+    role: 'assistant',
+    content: "Hi Michael! Tell me what to add, move, or find — I'll handle it. What type of block, what day and time, which class, and any details you want included."
+  };
 
   function init() {
-    // Welcome if empty
-    if (!history.length) {
-      history = [{
-        role: 'assistant',
-        content: "Hey Michael! I can help you plan your week, schedule study blocks, find open slots, or move things around. Just tell me what you need."
-      }];
-      _persist();
-    }
+    // Fresh chat on boot (no restore from storage)
+    history = [WELCOME];
     renderMessages();
-    // Show/hide bubble per setting
-    const enabled = Settings.get('sAIEnabled', true);
-    document.getElementById('aiBubble').style.display = enabled ? '' : 'none';
+    const bubble = document.getElementById('aiBubble');
+    if (bubble) bubble.style.display = Settings.get('sAIEnabled', true) ? '' : 'none';
   }
 
-  function _persist() {
-    try { localStorage.setItem(LS_HIST, JSON.stringify(history.slice(-30))); } catch {}
+  function _clearHistory() {
+    history = [WELCOME];
+    renderMessages();
   }
 
   function toggle() {
     const panel = document.getElementById('aiPanel');
+    const wasOpen = panel.classList.contains('open');
+    // Wipe history on BOTH open and close. No accumulated conversation.
+    _clearHistory();
     panel.classList.toggle('open');
-    if (panel.classList.contains('open')) {
-      renderMessages();
+    if (!wasOpen) {
       setTimeout(() => {
         const body = document.getElementById('aiMessages');
-        body.scrollTop = body.scrollHeight;
-        document.getElementById('aiInput').focus();
+        if (body) body.scrollTop = body.scrollHeight;
+        const input = document.getElementById('aiInput');
+        if (input) input.focus();
       }, 100);
     }
   }
@@ -77,7 +79,7 @@ const AI = (() => {
     input.value = '';
     input.style.height = 'auto';
     history.push({ role: 'user', content: text });
-    _persist();
+    // (history is ephemeral — no persist)
     renderMessages();
 
     // Add typing indicator
@@ -110,7 +112,7 @@ const AI = (() => {
           role: 'assistant',
           content: `⚠️ ${err.error || 'Something went wrong'}. Make sure your Anthropic API key is set in Netlify env vars as ANTHROPIC_API_KEY.`
         });
-        _persist();
+        // (history is ephemeral — no persist)
         renderMessages();
         return;
       }
@@ -123,7 +125,7 @@ const AI = (() => {
         content: data.text || '(no response)',
         actionsApplied,
       });
-      _persist();
+      // (history is ephemeral — no persist)
       renderMessages();
       if (actionsApplied > 0) App.refresh();
     } catch (err) {
@@ -132,7 +134,7 @@ const AI = (() => {
         role: 'assistant',
         content: `⚠️ Connection error: ${err.message || err}`
       });
-      _persist();
+      // (history is ephemeral — no persist)
       renderMessages();
     } finally {
       if (sendBtn) sendBtn.disabled = false;

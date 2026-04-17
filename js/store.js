@@ -119,12 +119,17 @@ const Store = (() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, meta }),
       });
-      if (res.ok) {
-        const d = await res.json();
-        meta.lastPush = d.updatedAt || Date.now();
-        ls.set('meta', meta);
-        _setSync('ok', 'Synced');
-      } else _setSync('err', 'Sync failed');
+      if (!res.ok) {
+        let msg = 'Sync failed';
+        try { const j = await res.json(); if (j && j.message) msg = 'Sync: ' + j.message; } catch {}
+        _setSync('err', msg);
+        return;
+      }
+      const d = await res.json();
+      if (!d || !d.ok) { _setSync('err', 'Sync failed'); return; }
+      meta.lastPush = d.updatedAt || Date.now();
+      ls.set('meta', meta);
+      _setSync('ok', 'Synced');
     } catch (e) {
       _setSync('err', 'Offline');
     }
@@ -132,12 +137,21 @@ const Store = (() => {
   async function pull() {
     try {
       const res = await fetch('/api/sync?action=pull');
-      if (!res.ok) return false;
+      if (!res.ok) {
+        // Server returned a real error — do NOT overwrite local data.
+        let msg = 'Sync failed';
+        try { const j = await res.json(); if (j && j.message) msg = 'Sync: ' + j.message; } catch {}
+        _setSync('err', msg);
+        return false;
+      }
       const r = await res.json();
-      if (!r || r._err) return false;
+      if (!r || r.error || r._err) { _setSync('err', 'Sync failed'); return false; }
       const rTime = r.updatedAt || 0;
-      const lTime = meta.lastPush || 0;
+      const lTime = Math.max(meta.lastPush || 0, meta.lastPull || 0);
       const hasLocal = Object.keys(schedule).length > 0 || tasks.length > 0;
+      // If server has no data (updatedAt=0), never clobber local, no matter what.
+      if (rTime === 0) { _setSync('ok', hasLocal ? 'Synced' : 'Ready'); return false; }
+      // Only overwrite local if server is strictly newer.
       if (!hasLocal || rTime > lTime) {
         if (r.schedule && typeof r.schedule === 'object') { schedule = r.schedule; ls.set('schedule', schedule); }
         if (Array.isArray(r.tasks)) { tasks = r.tasks; ls.set('tasks', tasks); }
