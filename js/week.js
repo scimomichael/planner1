@@ -1,5 +1,5 @@
 // ═════════════════════════════════════════════════════════
-// WEEK — 7-day grid with blocks+tasks per day
+// WEEK — 7-day grid showing each day's blocks at a glance
 // ═════════════════════════════════════════════════════════
 const Week = (() => {
   let offset = 0;
@@ -26,7 +26,9 @@ const Week = (() => {
       const isToday = dk === todayStr;
       const dow = d.getDay();
       const isWeekend = dow === 0 || dow === 6;
-      const blocks = Store.schedule[dk] || [];
+      // Expand recurring blocks so a "weekly APUSH study" on Monday appears
+      // on every Monday in the view, not just the source date.
+      const blocks = Sched.blocksForDate(dk);
 
       const chips = blocks.slice(0, 8).map(b => {
         const clsColor = b.classLabel ? (Store.getClassColor(b.classLabel) || '') : '';
@@ -46,12 +48,12 @@ const Week = (() => {
   }
 
   function jump(dk) {
+    // Directly compute the offset from today and set it once. The old
+    // version called Sched.shift() in a busy loop which re-rendered the
+    // schedule N times; this sets it once and renders once.
     const diff = Math.round((new Date(dk + 'T00:00:00') - Store.today()) / 86400000);
-    // Set Today view offset
     App.nav('today');
-    // reset and apply
-    while (Sched.getOffset() !== 0) Sched.shift(Sched.getOffset() > 0 ? -1 : 1);
-    if (diff !== 0) Sched.shift(diff);
+    Sched.setOffset(diff);
   }
 
   return { shift, today, render, jump };

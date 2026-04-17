@@ -101,7 +101,11 @@ const Store = (() => {
   }
   function loadFocus() {
     const el = document.getElementById('focusInput');
-    if (el) el.value = focusMap[todayStr()] || '';
+    if (!el) return;
+    // Don't clobber the user's typing if the focus input is currently active.
+    // sync pulls or App.refresh() shouldn't erase a half-written focus note.
+    if (document.activeElement === el) return;
+    el.value = focusMap[todayStr()] || '';
   }
 
   // ── Cross-device sync ────────────────────────────────
@@ -246,9 +250,9 @@ const Store = (() => {
     const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = msg;
-    el.style.opacity = '1';
+    el.classList.add('show');
     clearTimeout(el._t);
-    el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+    el._t = setTimeout(() => { el.classList.remove('show'); }, 1800);
   }
 
   function clearSchedule() { schedule = {}; persist(); }
@@ -352,6 +356,22 @@ const Store = (() => {
     }
   }
 
+  // Click handler for the sidebar sync dot. Hits the /api/sync?action=ping
+  // endpoint so the user can see real diagnostics instead of guessing.
+  async function showSyncDiag() {
+    toast('Checking sync…');
+    try {
+      const res = await fetch('/api/sync?action=ping');
+      const text = await res.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+      // Use alert() — simple and unmistakable. Diagnostics aren't polish.
+      alert('Sync diagnostics (status ' + res.status + '):\n\n' + pretty);
+    } catch (e) {
+      alert('Could not reach /api/sync — ' + (e.message || e));
+    }
+  }
+
   return {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
@@ -364,5 +384,6 @@ const Store = (() => {
     getClassColor, setClassColor,
     getClasses, getClassByName, addClass, updateClass, removeClass,
     countClassAssignments, reorderClasses,
+    showSyncDiag,
   };
 })();
