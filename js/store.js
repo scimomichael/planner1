@@ -1,6 +1,5 @@
-// ═════════════════════════════════════════════════════════
-// STORE — state, persistence, cross-device sync
-// ═════════════════════════════════════════════════════════
+// store.js -- state, persistence, cross-device sync
+// Fixes: toast uses classList, calSubs support, showSyncDiag, no em dashes
 const Store = (() => {
   const LS = k => `pl3_${k}`;
   const ls = {
@@ -9,12 +8,15 @@ const Store = (() => {
   };
 
   let tasks     = ls.get('tasks')     || [];
-  let schedule  = ls.get('schedule')  || {};   // { "YYYY-MM-DD": [blocks...] }
+  let schedule  = ls.get('schedule')  || {};
   let focusMap  = ls.get('focus')     || {};
   let templates = ls.get('templates') || _defaultTemplates();
   let classClr  = ls.get('classClr')  || {};
   let classes   = ls.get('classes')   || _defaultClasses(classClr);
+  let calSubs   = ls.get('calSubs')   || [];
   let meta      = ls.get('meta')      || { lastPull: 0, lastPush: 0 };
+  // Deletion tombstones: importUids that user deleted, so re-sync won't resurrect
+  let calTombstones = ls.get('calTombstones') || [];
 
   function _defaultClasses(legacyColors) {
     const base = [
@@ -27,7 +29,6 @@ const Store = (() => {
       { name: 'Harvard Pre-College',  color: '#a2845e' },
       { name: 'Personal',             color: '#8e8e93' },
     ];
-    // If legacy classClr had custom colors, respect them
     return base.map((c, i) => ({
       id: 'cls_' + Math.random().toString(36).slice(2) + i,
       name: c.name,
@@ -77,6 +78,8 @@ const Store = (() => {
     ls.set('templates', templates);
     ls.set('classClr', classClr);
     ls.set('classes', classes);
+    ls.set('calSubs', calSubs);
+    ls.set('calTombstones', calTombstones);
     ls.set('meta', meta);
     _queuePush();
   }
@@ -93,31 +96,30 @@ const Store = (() => {
     focusMap[date] = text || '';
     ls.set('focus', focusMap);
     _queuePush();
-    // If editing today's focus, update the visible input
     if (date === todayStr()) {
       const el = document.getElementById('focusInput');
-      if (el) el.value = focusMap[date];
+      if (el && document.activeElement !== el) el.value = focusMap[date];
     }
   }
   function loadFocus() {
     const el = document.getElementById('focusInput');
-    if (el) el.value = focusMap[todayStr()] || '';
+    if (el && document.activeElement !== el) el.value = focusMap[todayStr()] || '';
   }
 
-  // ── Cross-device sync ────────────────────────────────
+  // Cross-device sync
   let _pushTimer = null;
   function _queuePush() {
     if (typeof Settings !== 'undefined' && Settings.get && !Settings.get('sCrossSync', true)) return;
     clearTimeout(_pushTimer);
     _pushTimer = setTimeout(_doPush, 1200);
-    _setSync('syncing', 'Syncing…');
+    _setSync('syncing', 'Syncing...');
   }
   async function _doPush() {
     try {
       const res = await fetch('/api/sync?action=push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, meta }),
+        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, calSubs, calTombstones, meta }),
       });
       if (!res.ok) {
         let msg = 'Sync failed';
@@ -138,7 +140,6 @@ const Store = (() => {
     try {
       const res = await fetch('/api/sync?action=pull');
       if (!res.ok) {
-        // Server returned a real error — do NOT overwrite local data.
         let msg = 'Sync failed';
         try { const j = await res.json(); if (j && j.message) msg = 'Sync: ' + j.message; } catch {}
         _setSync('err', msg);
@@ -149,9 +150,7 @@ const Store = (() => {
       const rTime = r.updatedAt || 0;
       const lTime = Math.max(meta.lastPush || 0, meta.lastPull || 0);
       const hasLocal = Object.keys(schedule).length > 0 || tasks.length > 0;
-      // If server has no data (updatedAt=0), never clobber local, no matter what.
       if (rTime === 0) { _setSync('ok', hasLocal ? 'Synced' : 'Ready'); return false; }
-      // Only overwrite local if server is strictly newer.
       if (!hasLocal || rTime > lTime) {
         if (r.schedule && typeof r.schedule === 'object') { schedule = r.schedule; ls.set('schedule', schedule); }
         if (Array.isArray(r.tasks)) { tasks = r.tasks; ls.set('tasks', tasks); }
@@ -159,6 +158,8 @@ const Store = (() => {
         if (Array.isArray(r.templates) && r.templates.length) { templates = r.templates; ls.set('templates', templates); }
         if (r.classClr && typeof r.classClr === 'object') { classClr = r.classClr; ls.set('classClr', classClr); }
         if (Array.isArray(r.classes) && r.classes.length) { classes = r.classes; ls.set('classes', classes); }
+        if (Array.isArray(r.calSubs)) { calSubs = r.calSubs; ls.set('calSubs', calSubs); }
+        if (Array.isArray(r.calTombstones)) { calTombstones = r.calTombstones; ls.set('calTombstones', calTombstones); }
         meta.lastPull = rTime; ls.set('meta', meta);
         _setSync('ok', 'Synced');
         return true;
@@ -177,7 +178,20 @@ const Store = (() => {
     if (l) l.textContent = label;
   }
 
-  // ── Date helpers ──────────────────────────────────────
+  function showSyncDiag() {
+    const info = [
+      `Local schedule keys: ${Object.keys(schedule).length}`,
+      `Last push: ${meta.lastPush ? new Date(meta.lastPush).toLocaleString() : 'never'}`,
+      `Last pull: ${meta.lastPull ? new Date(meta.lastPull).toLocaleString() : 'never'}`,
+      `Classes: ${classes.length}`,
+      `Calendar subs: ${calSubs.length}`,
+      `Templates: ${templates.length}`,
+      `Cross-sync: ${(typeof Settings !== 'undefined' && Settings.get) ? Settings.get('sCrossSync', true) : 'unknown'}`,
+    ];
+    alert('Sync Diagnostics\n\n' + info.join('\n'));
+  }
+
+  // Date helpers
   const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
   const toStr = d => {
     const y = d.getFullYear();
@@ -207,7 +221,6 @@ const Store = (() => {
     });
   }
   function monthDays(year, month, startDay = 0) {
-    // Returns 6-week grid (42 days) for given year+month
     const first = new Date(year, month, 1);
     const dow = first.getDay();
     const diff = (dow - startDay + 7) % 7;
@@ -242,49 +255,36 @@ const Store = (() => {
     return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
+  // FIX: toast uses classList instead of opacity style
   function toast(msg) {
     const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = msg;
-    el.style.opacity = '1';
+    el.classList.add('show');
     clearTimeout(el._t);
-    el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+    el._t = setTimeout(() => { el.classList.remove('show'); }, 1800);
   }
 
   function clearSchedule() { schedule = {}; persist(); }
   function clearTasks()    { tasks = []; persist(); }
   function clearTemplates() { templates = _defaultTemplates(); persist(); }
 
-  // Template helpers
   function addTemplate(tpl) {
     tpl.id = tpl.id || 't_' + Date.now() + Math.random().toString(36).slice(2);
     templates.push(tpl);
     persist();
   }
-  function removeTemplate(id) {
-    templates = templates.filter(t => t.id !== id);
-    persist();
-  }
+  function removeTemplate(id) { templates = templates.filter(t => t.id !== id); persist(); }
   function getTemplates() { return templates; }
 
-  // ── Class CRUD ──────────────────────────────────────
-  function getClasses() {
-    return [...classes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }
+  // Class CRUD
+  function getClasses() { return [...classes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); }
   function addClass(name, color) {
     name = (name || '').trim();
     if (!name) return null;
-    if (classes.find(c => c.name.toLowerCase() === name.toLowerCase())) {
-      toast(`"${name}" already exists`);
-      return null;
-    }
+    if (classes.find(c => c.name.toLowerCase() === name.toLowerCase())) { toast(`"${name}" already exists`); return null; }
     const maxOrder = classes.reduce((m, c) => Math.max(m, c.order || 0), -1);
-    const cls = {
-      id: 'cls_' + Date.now() + Math.random().toString(36).slice(2),
-      name,
-      color: color || '#8e8e93',
-      order: maxOrder + 1,
-    };
+    const cls = { id: 'cls_' + Date.now() + Math.random().toString(36).slice(2), name, color: color || '#8e8e93', order: maxOrder + 1 };
     classes.push(cls);
     persist();
     return cls;
@@ -295,7 +295,6 @@ const Store = (() => {
     const oldName = c.name;
     if (patch.name !== undefined) c.name = patch.name.trim();
     if (patch.color !== undefined) c.color = patch.color;
-    // Propagate rename to all tasks and blocks
     if (patch.name !== undefined && patch.name !== oldName) {
       tasks.forEach(t => { if (t.classLabel === oldName) t.classLabel = c.name; });
       Object.values(schedule).forEach(list => {
@@ -305,7 +304,6 @@ const Store = (() => {
     persist();
     return true;
   }
-  // Remove a class. Optionally reassign existing assignments to another class name.
   function removeClass(id, reassignTo) {
     const c = classes.find(x => x.id === id);
     if (!c) return false;
@@ -328,35 +326,65 @@ const Store = (() => {
     return n;
   }
   function reorderClasses(orderedIds) {
-    orderedIds.forEach((id, i) => {
-      const c = classes.find(x => x.id === id);
-      if (c) c.order = i;
-    });
+    orderedIds.forEach((id, i) => { const c = classes.find(x => x.id === id); if (c) c.order = i; });
     persist();
   }
 
-  // Legacy color helpers (retained for backward compat but now routed via classes array)
   function getClassColor(clsName) {
     const c = getClassByName(clsName);
     return (c && c.color) || classClr[clsName] || null;
   }
   function setClassColor(clsName, color) {
     const c = getClassByName(clsName);
-    if (c) {
-      c.color = color || '#8e8e93';
-      persist();
-    } else {
-      if (color) classClr[clsName] = color;
-      else delete classClr[clsName];
-      persist();
+    if (c) { c.color = color || '#8e8e93'; persist(); }
+    else { if (color) classClr[clsName] = color; else delete classClr[clsName]; persist(); }
+  }
+
+  // Calendar subscription CRUD
+  function getCalSubs() { return calSubs; }
+  function getCalSub(id) { return calSubs.find(s => s.id === id); }
+  function addCalSub(sub) {
+    sub.id = sub.id || 'csub_' + Date.now() + Math.random().toString(36).slice(2);
+    calSubs.push(sub);
+    persist();
+    return sub;
+  }
+  function updateCalSub(id, patch) {
+    const s = calSubs.find(x => x.id === id);
+    if (!s) return;
+    Object.assign(s, patch);
+    persist();
+  }
+  function removeCalSub(id) {
+    calSubs = calSubs.filter(x => x.id !== id);
+    persist();
+  }
+  function recordCalSubDeletion(importUid) {
+    if (importUid && !calTombstones.includes(importUid)) {
+      calTombstones.push(importUid);
+      ls.set('calTombstones', calTombstones);
     }
+  }
+  function isCalTombstoned(importUid) { return calTombstones.includes(importUid); }
+  function markBlockUserEdited(dk, bi) {
+    const list = schedule[dk];
+    if (list && list[bi]) { list[bi].userEdited = true; persist(); }
+  }
+
+  // Remove a block and record its importUid as tombstone
+  function removeBlock(dk, bi) {
+    if (!schedule[dk]) return;
+    const b = schedule[dk][bi];
+    if (b && b.importUid) recordCalSubDeletion(b.importUid);
+    schedule[dk].splice(bi, 1);
+    persist();
   }
 
   return {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
     persist, snapshot, undo, redo,
-    saveFocus, loadFocus, setFocus, pull,
+    saveFocus, loadFocus, setFocus, pull, showSyncDiag,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays, monthDays,
     duePill, clsPill, esc, toast,
     clearSchedule, clearTemplates,
@@ -364,5 +392,7 @@ const Store = (() => {
     getClassColor, setClassColor,
     getClasses, getClassByName, addClass, updateClass, removeClass,
     countClassAssignments, reorderClasses,
+    getCalSubs, getCalSub, addCalSub, updateCalSub, removeCalSub,
+    recordCalSubDeletion, isCalTombstoned, markBlockUserEdited, removeBlock,
   };
 })();
