@@ -329,9 +329,11 @@ const Sched = (() => {
       `;
 
       // On short blocks, wire a hover popover that shows hidden details
-      // in a floating card to the side.
+      // in a floating card to the side. Wrapped in try/catch so a popover
+      // error can never take down the whole render loop.
       if (isShort && extras) {
-        _wireBlockPopover(block, b, timeDisp, extras);
+        try { _wireBlockPopover(block, b, timeDisp, extras); }
+        catch (err) { console.warn('Popover wiring failed:', err); }
       }
 
       _wireBlockInteraction(block, b, bi, allBlocks, dk, HOURS, SLOT_H, totalH);
@@ -351,27 +353,27 @@ const Sched = (() => {
     //   3. Else if this is the first time we've rendered this grid for
     //      this date, center on "now" (today) or top (other days).
     //   4. Otherwise leave scroll where the user put it.
+    //
+    // CRITICAL: scrollTop is set SYNCHRONOUSLY here (not in rAF) so the user
+    // never sees a flash-of-scroll-at-top before the restore kicks in.
     const initKey = `${gridId}|${dk}`;
     const preservedTop = _preservedScroll[gridId];
     const isTodayDate = (off === 0);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (preservedTop !== undefined) {
-        scroller.scrollTop = preservedTop;
-        delete _preservedScroll[gridId];
-        return;
+
+    let targetScroll = null;
+    if (preservedTop !== undefined) {
+      targetScroll = preservedTop;
+      delete _preservedScroll[gridId];
+    } else if (_scrollAnchor && _scrollAnchor.gridId === gridId && _scrollAnchor.dk === dk) {
+      const anchorBi = _scrollAnchor.bi;
+      const anchorEl = canvas.querySelector(`.sched-block[data-bi="${anchorBi}"]`);
+      if (anchorEl) {
+        const atop = parseFloat(anchorEl.style.top) || 0;
+        const ah = parseFloat(anchorEl.style.height) || 0;
+        targetScroll = atop - scroller.clientHeight / 2 + ah / 2;
       }
-      if (_scrollAnchor && _scrollAnchor.gridId === gridId && _scrollAnchor.dk === dk) {
-        const anchorBi = _scrollAnchor.bi;
-        const el = canvas.querySelector(`.sched-block[data-bi="${anchorBi}"]`);
-        if (el) {
-          const top = parseFloat(el.style.top) || 0;
-          const target = top - scroller.clientHeight / 2 + (parseFloat(el.style.height) || 0) / 2;
-          scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
-        }
-        _scrollAnchor = null;
-        return;
-      }
-      if (_initDone[initKey]) return; // user has scrolled, leave alone
+      _scrollAnchor = null;
+    } else if (!_initDone[initKey]) {
       _initDone[initKey] = true;
       if (isTodayDate && Settings.get('sAutoScroll', true)) {
         const now = new Date();
@@ -380,10 +382,13 @@ const Sched = (() => {
         let adjM = nowM;
         if (HOURS.includes(0) && nowM < 120) adjM = nowM + 24 * 60;
         const pct = Math.max(0, (adjM - startM) / (TOTAL_SLOTS * SLOT_MIN));
-        const target = pct * totalH - scroller.clientHeight / 2;
-        scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
+        targetScroll = pct * totalH - scroller.clientHeight / 2;
       }
-    }));
+    }
+    if (targetScroll !== null) {
+      const max = Math.max(0, totalH - scroller.clientHeight);
+      scroller.scrollTop = Math.max(0, Math.min(targetScroll, max));
+    }
   }
 
   // Check if a recurring block recurs on target date
@@ -596,18 +601,14 @@ const Sched = (() => {
   function _wireBlockPopover(block, b, timeDisp, extrasHTML) {
     let pop = null;
     let hideTimer = null;
+    let scrollListener = null;
 
     function buildPopover() {
       const p = document.createElement('div');
       p.className = 'sched-block-popover ' + (b.css || 'sb-other');
-      // Same light/dark contrast treatment as the block itself.
       const labelHTML = `<div class="popover-title">${Store.esc(b.label || '')}</div>`;
       const timeHTML = timeDisp ? `<div class="popover-time">${timeDisp}</div>` : '';
-      p.innerHTML = `
-        ${labelHTML}
-        ${timeHTML}
-        <div class="popover-body">${extrasHTML}</div>
-      `;
+      p.innerHTML = labelHTML + timeHTML + `<div class="popover-body">${extrasHTML}</div>`;
       return p;
     }
 
@@ -618,27 +619,14 @@ const Sched = (() => {
       const margin = 10;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      // Default: position to the right of the block, vertically centered.
       let left = rect.right + margin;
       let top = rect.top + rect.height / 2 - popRect.height / 2;
-      let arrow = 'left';
-      // If no room on the right, flip to the left.
-      if (left + popRect.width > vw - 8) {
-        left = rect.left - popRect.width - margin;
-        arrow = 'right';
-      }
-      // If still off-screen (narrow viewport), stack below instead.
-      if (left < 8) {
-        left = Math.max(8, rect.left);
-        top = rect.bottom + margin;
-        arrow = 'top';
-      }
-      // Clamp vertically.
+      if (left + popRect.width > vw - 8) left = rect.left - popRect.width - margin;
+      if (left < 8) { left = Math.max(8, rect.left); top = rect.bottom + margin; }
       if (top < 8) top = 8;
       if (top + popRect.height > vh - 8) top = vh - popRect.height - 8;
       pop.style.left = left + 'px';
       pop.style.top = top + 'px';
-      pop.dataset.arrow = arrow;
     }
 
     function show() {
@@ -646,15 +634,19 @@ const Sched = (() => {
       if (pop) return;
       pop = buildPopover();
       document.body.appendChild(pop);
-      // Let it render, then position and fade in.
-      requestAnimationFrame(() => {
-        position();
-        pop.classList.add('open');
-      });
+      requestAnimationFrame(() => { if (pop) { position(); pop.classList.add('open'); } });
+      // Store scroll listener so we can remove it on hide — prevents leak
+      scrollListener = () => { if (pop) position(); };
+      window.addEventListener('scroll', scrollListener, { passive: true, capture: true });
     }
+
     function hide() {
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
+        if (scrollListener) {
+          window.removeEventListener('scroll', scrollListener, { capture: true });
+          scrollListener = null;
+        }
         if (pop) {
           pop.classList.remove('open');
           const node = pop;
@@ -666,13 +658,7 @@ const Sched = (() => {
 
     block.addEventListener('mouseenter', show);
     block.addEventListener('mouseleave', hide);
-    block.addEventListener('focus', show);
-    block.addEventListener('blur', hide);
-    // If the schedule scrolls while popover is open, reposition it.
-    block.addEventListener('scroll', position, true);
-    window.addEventListener('scroll', () => { if (pop) position(); }, { passive: true, once: false });
   }
-
 
 
   // Snapshot each visible scroller's scrollTop so the next render can
@@ -729,15 +715,39 @@ const Sched = (() => {
     renderBoth();
   }
 
+  // Return a combined list of raw blocks + any recurring-instance blocks
+  // that should appear on the given date. Used by Week and Month views so
+  // recurring blocks show up everywhere, not just on the source day.
+  function blocksForDate(dk) {
+    const raw = Store.schedule[dk] || [];
+    const out = [...raw];
+    Object.entries(Store.schedule).forEach(([src, list]) => {
+      if (src === dk) return;
+      (list || []).forEach(b => {
+        if (!b.recur || b.recur === 'none') return;
+        if (_recursOn(b, src, dk)) out.push({ ...b, _recurFrom: src });
+      });
+    });
+    return out;
+  }
+
+  // Set the compact-today offset directly in one go (no busy loop).
+  function setOffset(n) {
+    offset = n | 0;
+    render('schedGrid', 'schedLabel', offset);
+  }
+
   return {
-    shift, shiftFull, today, todayFull, getOffset, getFullOffset,
+    shift, shiftFull, today, todayFull, getOffset, getFullOffset, setOffset,
     render, renderBoth,
     addBlock, updateBlock, removeBlock, toggleDone,
+    blocksForDate,
     getBlockTypes: () => BLOCK_TYPES,
     getLocalTz: () => localTz,
     minsToTimeStr: fromMins,
     timeStrToMins: toMins,
     fmtTimeStr: fmtStr,
+    _preserveScroll,
   };
 })();
 

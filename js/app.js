@@ -114,6 +114,11 @@ const App = (() => {
     setupKeyboard();
     setInterval(() => {
       if (currentView === 'today' || currentView === 'schedule') {
+        // Preserve scroll across the periodic now-line refresh so the user
+        // doesn't feel a tiny jump every minute.
+        if (typeof Sched !== 'undefined' && Sched._preserveScroll) {
+          Sched._preserveScroll();
+        }
         Sched.renderBoth();
       }
     }, 60000);
@@ -122,24 +127,30 @@ const App = (() => {
     // flipping from Mac to iPad or back), pull fresh data from the server
     // so changes made on another device show up without a manual refresh.
     let _lastFocusPull = 0;
+    async function _pullAndRender() {
+      const changed = await Store.pull();
+      if (!changed) return;
+      // Preserve scroll so the refresh doesn't yank the schedule view.
+      if (typeof Sched !== 'undefined' && Sched._preserveScroll) {
+        Sched._preserveScroll();
+      }
+      refresh();
+    }
     window.addEventListener('focus', async () => {
       if (Date.now() - _lastFocusPull < 3000) return;
       _lastFocusPull = Date.now();
-      const changed = await Store.pull();
-      if (changed) refresh();
+      await _pullAndRender();
     });
     document.addEventListener('visibilitychange', async () => {
       if (document.visibilityState !== 'visible') return;
       if (Date.now() - _lastFocusPull < 3000) return;
       _lastFocusPull = Date.now();
-      const changed = await Store.pull();
-      if (changed) refresh();
+      await _pullAndRender();
     });
     // Periodic background pull every 60s as a safety net.
-    setInterval(async () => {
+    setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      const changed = await Store.pull();
-      if (changed) refresh();
+      _pullAndRender();
     }, 60000);
 
     nav('today');
