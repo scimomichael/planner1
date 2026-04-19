@@ -103,11 +103,7 @@ const Store = (() => {
   }
   function loadFocus() {
     const el = document.getElementById('focusInput');
-    if (!el) return;
-    // Don't clobber the user's typing if the focus input is currently active.
-    // sync pulls or App.refresh() shouldn't erase a half-written focus note.
-    if (document.activeElement === el) return;
-    el.value = focusMap[todayStr()] || '';
+    if (el) el.value = focusMap[todayStr()] || '';
   }
 
   // ── Cross-device sync ────────────────────────────────
@@ -253,9 +249,9 @@ const Store = (() => {
     const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = msg;
-    el.classList.add('show');
+    el.style.opacity = '1';
     clearTimeout(el._t);
-    el._t = setTimeout(() => { el.classList.remove('show'); }, 1800);
+    el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
   }
 
   function clearSchedule() { schedule = {}; persist(); }
@@ -359,6 +355,7 @@ const Store = (() => {
     }
   }
 
+<<<<<<< HEAD
   // ── Calendar subscriptions ────────────────────────────
   function getCalSubs() { return calSubs.slice(); }
   function getCalSub(id) { return calSubs.find(s => s.id === id) || null; }
@@ -437,6 +434,8 @@ const Store = (() => {
     }
   }
 
+=======
+>>>>>>> parent of f683922 (update v6)
   return {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
@@ -449,8 +448,11 @@ const Store = (() => {
     getClassColor, setClassColor,
     getClasses, getClassByName, addClass, updateClass, removeClass,
     countClassAssignments, reorderClasses,
+<<<<<<< HEAD
     getCalSubs, getCalSub, addCalSub, updateCalSub, removeCalSub, markBlockUserEdited,
     recordCalSubDeletion,
     showSyncDiag,
+=======
+>>>>>>> parent of f683922 (update v6)
   };
 })();

@@ -351,27 +351,27 @@ const Sched = (() => {
     //   3. Else if this is the first time we've rendered this grid for
     //      this date, center on "now" (today) or top (other days).
     //   4. Otherwise leave scroll where the user put it.
-    //
-    // CRITICAL: scrollTop is set SYNCHRONOUSLY here (not in rAF) so the user
-    // never sees a flash-of-scroll-at-top before the restore kicks in.
     const initKey = `${gridId}|${dk}`;
     const preservedTop = _preservedScroll[gridId];
     const isTodayDate = (off === 0);
-
-    let targetScroll = null;
-    if (preservedTop !== undefined) {
-      targetScroll = preservedTop;
-      delete _preservedScroll[gridId];
-    } else if (_scrollAnchor && _scrollAnchor.gridId === gridId && _scrollAnchor.dk === dk) {
-      const anchorBi = _scrollAnchor.bi;
-      const anchorEl = canvas.querySelector(`.sched-block[data-bi="${anchorBi}"]`);
-      if (anchorEl) {
-        const atop = parseFloat(anchorEl.style.top) || 0;
-        const ah = parseFloat(anchorEl.style.height) || 0;
-        targetScroll = atop - scroller.clientHeight / 2 + ah / 2;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (preservedTop !== undefined) {
+        scroller.scrollTop = preservedTop;
+        delete _preservedScroll[gridId];
+        return;
       }
-      _scrollAnchor = null;
-    } else if (!_initDone[initKey]) {
+      if (_scrollAnchor && _scrollAnchor.gridId === gridId && _scrollAnchor.dk === dk) {
+        const anchorBi = _scrollAnchor.bi;
+        const el = canvas.querySelector(`.sched-block[data-bi="${anchorBi}"]`);
+        if (el) {
+          const top = parseFloat(el.style.top) || 0;
+          const target = top - scroller.clientHeight / 2 + (parseFloat(el.style.height) || 0) / 2;
+          scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
+        }
+        _scrollAnchor = null;
+        return;
+      }
+      if (_initDone[initKey]) return; // user has scrolled, leave alone
       _initDone[initKey] = true;
       if (isTodayDate && Settings.get('sAutoScroll', true)) {
         const now = new Date();
@@ -380,13 +380,10 @@ const Sched = (() => {
         let adjM = nowM;
         if (HOURS.includes(0) && nowM < 120) adjM = nowM + 24 * 60;
         const pct = Math.max(0, (adjM - startM) / (TOTAL_SLOTS * SLOT_MIN));
-        targetScroll = pct * totalH - scroller.clientHeight / 2;
+        const target = pct * totalH - scroller.clientHeight / 2;
+        scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
       }
-    }
-    if (targetScroll !== null) {
-      const max = Math.max(0, totalH - scroller.clientHeight);
-      scroller.scrollTop = Math.max(0, Math.min(targetScroll, max));
-    }
+    }));
   }
 
   // Check if a recurring block recurs on target date
@@ -732,39 +729,15 @@ const Sched = (() => {
     renderBoth();
   }
 
-  // Return a combined list of raw blocks + any recurring-instance blocks
-  // that should appear on the given date. Used by Week and Month views so
-  // recurring blocks show up everywhere, not just on the source day.
-  function blocksForDate(dk) {
-    const raw = Store.schedule[dk] || [];
-    const out = [...raw];
-    Object.entries(Store.schedule).forEach(([src, list]) => {
-      if (src === dk) return;
-      (list || []).forEach(b => {
-        if (!b.recur || b.recur === 'none') return;
-        if (_recursOn(b, src, dk)) out.push({ ...b, _recurFrom: src });
-      });
-    });
-    return out;
-  }
-
-  // Set the compact-today offset directly in one go (no busy loop).
-  function setOffset(n) {
-    offset = n | 0;
-    render('schedGrid', 'schedLabel', offset);
-  }
-
   return {
-    shift, shiftFull, today, todayFull, getOffset, getFullOffset, setOffset,
+    shift, shiftFull, today, todayFull, getOffset, getFullOffset,
     render, renderBoth,
     addBlock, updateBlock, removeBlock, toggleDone,
-    blocksForDate,
     getBlockTypes: () => BLOCK_TYPES,
     getLocalTz: () => localTz,
     minsToTimeStr: fromMins,
     timeStrToMins: toMins,
     fmtTimeStr: fmtStr,
-    _preserveScroll,
   };
 })();
 

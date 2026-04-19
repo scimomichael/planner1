@@ -48,6 +48,7 @@ const Templates = (() => {
       start: tpl.start,
       end: tpl.end,
       due: null,
+      taskId: null,
       storedTz: Sched.getLocalTz(),
       recur: null,
       recurUntil: null,

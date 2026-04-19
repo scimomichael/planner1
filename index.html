@@ -312,7 +312,7 @@
     </div>
     <div class="modal-ft">
       <button class="btn-secondary" onclick="Templates.saveCurrentBlock()">Save as Template</button>
-      <div class="modal-ft-spacer"></div>
+      <div style="flex:1"></div>
       <button class="btn-cancel" onclick="BlockModal.close()">Cancel</button>
       <button class="btn-save" onclick="BlockModal.save()">Add Block</button>
     </div>
@@ -423,7 +423,7 @@
     </div>
     <div class="modal-ft">
       <button class="btn-danger" onclick="EditBlock.del()">Delete</button>
-      <div class="modal-ft-spacer"></div>
+      <div style="flex:1"></div>
       <button class="btn-cancel" onclick="EditBlock.close()">Cancel</button>
       <button class="btn-save" onclick="EditBlock.save()">Save</button>
     </div>
@@ -712,21 +712,21 @@
               <div class="settings-row-title">Force Sync Now</div>
               <div class="settings-row-sub">Pull the latest data from the server</div>
             </div>
-            <button class="btn-cancel" onclick="Settings.forcePull()">Pull</button>
+            <button class="btn-cancel" onclick="Settings.forcePull()" style="padding:6px 14px;font-size:13px">Pull</button>
           </div>
           <div class="settings-row">
             <div class="settings-row-main">
               <div class="settings-row-title">Export Schedule (iCal)</div>
               <div class="settings-row-sub">Download a .ics file for calendar apps</div>
             </div>
-            <button class="btn-cancel" onclick="Settings.exportICal()">Export</button>
+            <button class="btn-cancel" onclick="Settings.exportICal()" style="padding:6px 14px;font-size:13px">Export</button>
           </div>
           <div class="settings-row">
             <div class="settings-row-main">
               <div class="settings-row-title">Print Today</div>
               <div class="settings-row-sub">Print-friendly view of today</div>
             </div>
-            <button class="btn-cancel" onclick="window.print()">Print</button>
+            <button class="btn-cancel" onclick="window.print()" style="padding:6px 14px;font-size:13px">Print</button>
           </div>
         </div>
       </div>
@@ -830,7 +830,7 @@
       <div class="ai-hd-avatar">
         <svg viewBox="0 0 20 20" fill="none"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z" fill="rgba(255,255,255,.9)"/><circle cx="7.5" cy="9" r="1" fill="#007aff"/><circle cx="12.5" cy="9" r="1" fill="#007aff"/><path d="M7 12.5c1 1 2 1.5 3 1.5s2-.5 3-1.5" stroke="#007aff" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
       </div>
-      <div class="ai-hd-title-text">
+      <div>
         <div class="ai-hd-name">Claude</div>
         <div class="ai-hd-sub">Your planner assistant</div>
       </div>
