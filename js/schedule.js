@@ -7,6 +7,7 @@ const Sched = (() => {
 
   const BLOCK_TYPES = [
     { id: 'class',   label: 'Class',   css: 'sb-class' },
+    { id: 'exam',    label: 'Exam',    css: 'sb-exam' },
     { id: 'meeting', label: 'Meeting', css: 'sb-meeting' },
     { id: 'study',   label: 'Study',   css: 'sb-study' },
     { id: 'ec',      label: 'EC',      css: 'sb-ec' },
@@ -301,9 +302,11 @@ const Sched = (() => {
       block.style.width = `calc(${widthPct}% - 8px)`;
       block.dataset.dk = dk;
       block.dataset.bi = bi;
-      // Blocks under ~60px tall can only fit the title + time row.
-      // Everything else gets hidden to prevent overlap.
-      if (height < 60) block.dataset.short = '1';
+      // Blocks under ~60px tall can only fit the title + time row. Extras
+      // are hidden via CSS (to prevent overlap) and instead shown in a
+      // hover popover that floats next to the block.
+      const isShort = height < 60;
+      if (isShort) block.dataset.short = '1';
 
       // Build the inner HTML. Everything other than the name row + time
       // goes into .sched-block-extras which the CSS hides on short blocks.
@@ -324,6 +327,12 @@ const Sched = (() => {
         ${extras ? `<div class="sched-block-extras">${extras}</div>` : ''}
         <div class="sched-block-resize" data-act="resize"></div>
       `;
+
+      // On short blocks, wire a hover popover that shows hidden details
+      // in a floating card to the side.
+      if (isShort && extras) {
+        _wireBlockPopover(block, b, timeDisp, extras);
+      }
 
       _wireBlockInteraction(block, b, bi, allBlocks, dk, HOURS, SLOT_H, totalH);
       canvas.appendChild(block);
@@ -584,12 +593,90 @@ const Sched = (() => {
     }
   }
 
-  function renderBoth() {
-    render('schedGrid', 'schedLabel', offset);
-    if (document.getElementById('view-schedule')?.classList.contains('active')) {
-      render('schedFullGrid', 'schedFullLabel', fullOffset);
+  // Hover/focus popover for short blocks. Shows the extras (class, time,
+  // location, description, etc.) in a floating card next to the block since
+  // the block itself is too small to display them inline.
+  function _wireBlockPopover(block, b, timeDisp, extrasHTML) {
+    let pop = null;
+    let hideTimer = null;
+
+    function buildPopover() {
+      const p = document.createElement('div');
+      p.className = 'sched-block-popover ' + (b.css || 'sb-other');
+      // Same light/dark contrast treatment as the block itself.
+      const labelHTML = `<div class="popover-title">${Store.esc(b.label || '')}</div>`;
+      const timeHTML = timeDisp ? `<div class="popover-time">${timeDisp}</div>` : '';
+      p.innerHTML = `
+        ${labelHTML}
+        ${timeHTML}
+        <div class="popover-body">${extrasHTML}</div>
+      `;
+      return p;
     }
+
+    function position() {
+      if (!pop) return;
+      const rect = block.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      const margin = 10;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Default: position to the right of the block, vertically centered.
+      let left = rect.right + margin;
+      let top = rect.top + rect.height / 2 - popRect.height / 2;
+      let arrow = 'left';
+      // If no room on the right, flip to the left.
+      if (left + popRect.width > vw - 8) {
+        left = rect.left - popRect.width - margin;
+        arrow = 'right';
+      }
+      // If still off-screen (narrow viewport), stack below instead.
+      if (left < 8) {
+        left = Math.max(8, rect.left);
+        top = rect.bottom + margin;
+        arrow = 'top';
+      }
+      // Clamp vertically.
+      if (top < 8) top = 8;
+      if (top + popRect.height > vh - 8) top = vh - popRect.height - 8;
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+      pop.dataset.arrow = arrow;
+    }
+
+    function show() {
+      clearTimeout(hideTimer);
+      if (pop) return;
+      pop = buildPopover();
+      document.body.appendChild(pop);
+      // Let it render, then position and fade in.
+      requestAnimationFrame(() => {
+        position();
+        pop.classList.add('open');
+      });
+    }
+    function hide() {
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        if (pop) {
+          pop.classList.remove('open');
+          const node = pop;
+          pop = null;
+          setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 160);
+        }
+      }, 120);
+    }
+
+    block.addEventListener('mouseenter', show);
+    block.addEventListener('mouseleave', hide);
+    block.addEventListener('focus', show);
+    block.addEventListener('blur', hide);
+    // If the schedule scrolls while popover is open, reposition it.
+    block.addEventListener('scroll', position, true);
+    window.addEventListener('scroll', () => { if (pop) position(); }, { passive: true, once: false });
   }
+
+
 
   // Snapshot each visible scroller's scrollTop so the next render can
   // restore it. Call this BEFORE mutating + renderBoth.
@@ -631,7 +718,14 @@ const Sched = (() => {
 
   function removeBlock(dk, bi) {
     if (!Store.schedule[dk]) return;
+    const victim = Store.schedule[dk][bi];
     Store.snapshot();
+    // If this block was imported from a calendar subscription, record its
+    // UID as a tombstone so a future re-sync doesn't resurrect it.
+    if (victim && victim.importSource && victim.importUid
+        && typeof Store.recordCalSubDeletion === 'function') {
+      Store.recordCalSubDeletion(victim.importSource, victim.importUid);
+    }
     Store.schedule[dk].splice(bi, 1);
     Store.persist();
     _preserveScroll();
@@ -698,6 +792,7 @@ const BlockModal = (() => {
     document.getElementById('blockModalTitle').textContent =
       `Add Block · ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
     document.getElementById('bLabel').value = '';
+    document.getElementById('bDate').value = dk;
     document.getElementById('bStart').value = startTime;
     document.getElementById('bEnd').value = endTime;
     document.getElementById('bDue').value = '';
@@ -719,6 +814,14 @@ const BlockModal = (() => {
       const g = document.getElementById('bRecurEndGroup');
       g.style.display = e.target.value === 'none' ? 'none' : '';
     };
+    // Live-update the modal title when the user picks a different date
+    document.getElementById('bDate').onchange = e => {
+      const v = e.target.value;
+      if (!v) return;
+      const d2 = new Date(v + 'T00:00:00');
+      document.getElementById('blockModalTitle').textContent =
+        `Add Block · ${d2.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+    };
   }
 
   function close() { document.getElementById('blockOverlay').classList.remove('open'); }
@@ -726,6 +829,7 @@ const BlockModal = (() => {
 
   function save() {
     const label     = document.getElementById('bLabel').value.trim() || _type;
+    const dateVal   = document.getElementById('bDate').value || _dk;
     const start     = document.getElementById('bStart').value;
     const end       = document.getElementById('bEnd').value;
     if (!start) { document.getElementById('bStart').focus(); return; }
@@ -741,16 +845,16 @@ const BlockModal = (() => {
     const link        = document.getElementById('bLink')?.value.trim() || '';
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
 
-    // Conflict detection
+    // Conflict detection (use the chosen date, not the cell the modal was opened from)
     if (!Settings.get || Settings.get('sConflictWarn', true)) {
-      const conflicts = _findConflicts(_dk, start, end);
+      const conflicts = _findConflicts(dateVal, start, end);
       if (conflicts.length) {
-        const labels = conflicts.map(c => `"${c.label}" (${c.start}–${c.end})`).join(', ');
+        const labels = conflicts.map(c => `"${c.label}" (${c.start}-${c.end})`).join(', ');
         if (!confirm(`This overlaps: ${labels}\n\nAdd anyway?`)) return;
       }
     }
 
-    Sched.addBlock(_dk, {
+    Sched.addBlock(dateVal, {
       label, type: _type, css, start, end,
       due, classLabel, description, storedTz,
       recur: recur === 'none' ? null : recur,
@@ -835,10 +939,19 @@ const EditBlock = (() => {
     const link        = document.getElementById('ebLink')?.value.trim() || '';
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
     const orig = Store.schedule[_dk]?.[_bi] || {};
+    // If this is an imported block and the user changed type or class, flag it
+    // so future re-syncs don't stomp the change.
+    let userEdited = orig.userEdited || false;
+    if (orig.importSource) {
+      if (orig.type !== _type || (orig.classLabel || '') !== classLabel) {
+        userEdited = true;
+      }
+    }
     const block = {
       ...orig, label, type: _type, css, start, end, due, classLabel, description, storedTz,
       recur: recurVal === 'none' ? null : recurVal,
       priority, status, reminder, location, link,
+      userEdited,
     };
     if (newDk !== _dk) {
       Sched.removeBlock(_dk, _bi);

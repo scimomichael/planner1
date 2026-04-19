@@ -8,7 +8,7 @@ const AI = (() => {
 
   const WELCOME = {
     role: 'assistant',
-    content: "Hi Michael! Tell me what to add, move, or find — I'll handle it. What type of block, what day and time, which class, and any details you want included."
+    content: "Hi Michael! Tell me what to add, move, or find and I'll handle it. What type of block, what day and time, which class, and any details you want included."
   };
 
   function init() {

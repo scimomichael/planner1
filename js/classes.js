@@ -214,7 +214,7 @@ const Classes = (() => {
 
     const sel = document.getElementById('reassignTarget');
     const others = Store.getClasses().filter(x => x.id !== cls.id);
-    sel.innerHTML = `<option value="">— Unassign (clear class field) —</option>` +
+    sel.innerHTML = `<option value="">Unassign (clear class field)</option>` +
       others.map(c => `<option value="${Store.esc(c.name)}">${Store.esc(c.name)}</option>`).join('');
 
     const confirmBtn = document.getElementById('reassignConfirm');

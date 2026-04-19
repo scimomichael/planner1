@@ -63,7 +63,7 @@ const Notify = (() => {
     }
     if (Notification.permission === 'granted') { start(); return true; }
     if (Notification.permission === 'denied') {
-      Store.toast('Permission denied — enable in browser settings');
+      Store.toast('Permission denied. Enable in browser settings.');
       return false;
     }
     const perm = await Notification.requestPermission();
