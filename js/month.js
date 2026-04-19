@@ -45,8 +45,7 @@ const Month = (() => {
       const dow = d.getDay();
       const isWeekend = dow === 0 || dow === 6;
 
-      // Include recurring instances so they show up on every applicable day.
-      const blocks = Sched.blocksForDate(dk);
+      const blocks = Store.schedule[dk] || [];
       const chips = blocks.slice(0, 5).map(b => {
         const clsColor = b.classLabel ? (Store.getClassColor(b.classLabel) || '') : '';
         const style = clsColor ? ` style="border-left:2px solid ${clsColor}"` : '';
@@ -67,10 +66,10 @@ const Month = (() => {
   }
 
   function jump(dk) {
-    // Clean single-shot offset set instead of busy-loop shifting.
     const diff = Math.round((new Date(dk + 'T00:00:00') - Store.today()) / 86400000);
     App.nav('today');
-    Sched.setOffset(diff);
+    while (Sched.getOffset() !== 0) Sched.shift(Sched.getOffset() > 0 ? -1 : 1);
+    if (diff !== 0) Sched.shift(diff);
   }
 
   return { shift, today, render, jump };

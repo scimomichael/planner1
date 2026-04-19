@@ -63,7 +63,7 @@ const QuickAdd = (() => {
   }
 
   function dateLabelFor(dk) {
-    if (!dk) return '(no date)';
+    if (!dk) return '—';
     const n = Store.daysUntil(dk);
     if (n === 0) return 'Today';
     if (n === 1) return 'Tomorrow';

@@ -226,10 +226,6 @@
     </div>
     <div class="modal-bd">
       <input class="field-hero" id="bLabel" placeholder="What are you doing?" autocomplete="off">
-      <div class="field-group">
-        <div class="field-label">Date</div>
-        <input class="field-input" type="date" id="bDate">
-      </div>
       <div class="field-row">
         <div class="field-group">
           <div class="field-label">Start</div>
@@ -312,7 +308,7 @@
     </div>
     <div class="modal-ft">
       <button class="btn-secondary" onclick="Templates.saveCurrentBlock()">Save as Template</button>
-      <div class="modal-ft-spacer"></div>
+      <div style="flex:1"></div>
       <button class="btn-cancel" onclick="BlockModal.close()">Cancel</button>
       <button class="btn-save" onclick="BlockModal.save()">Add Block</button>
     </div>
@@ -423,7 +419,7 @@
     </div>
     <div class="modal-ft">
       <button class="btn-danger" onclick="EditBlock.del()">Delete</button>
-      <div class="modal-ft-spacer"></div>
+      <div style="flex:1"></div>
       <button class="btn-cancel" onclick="EditBlock.close()">Cancel</button>
       <button class="btn-save" onclick="EditBlock.save()">Save</button>
     </div>
@@ -478,53 +474,6 @@
       <input id="cmdkInput" placeholder="Search tasks, blocks, run commands…" autocomplete="off" oninput="CmdK.handleInput()" onkeydown="CmdK.handleKey(event)">
     </div>
     <div class="cmdk-results" id="cmdkResults"></div>
-  </div>
-</div>
-
-<!-- ═════ ADD CALENDAR ═════ -->
-<div class="modal-overlay" id="addCalOverlay" onclick="Settings.addCalOverlayClick(event)">
-  <div class="modal modal-sm">
-    <div class="modal-hd">
-      <span>Add Calendar Subscription</span>
-      <button class="modal-close" onclick="Settings.closeAddCalSub()">
-        <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <div class="modal-bd">
-      <div class="field-group">
-        <label class="field-label">Label</label>
-        <input class="field-input" id="calSubLabel" placeholder="e.g. School Calendar, ESD Athletics" autocomplete="off">
-      </div>
-      <div class="field-group">
-        <label class="field-label">Calendar URL</label>
-        <input class="field-input" id="calSubUrl" placeholder="https://...ics  or  webcal://..." autocomplete="off" spellcheck="false">
-        <div class="field-hint calsub-modal-hint">
-          <strong>Google Calendar:</strong> calendar.google.com &rarr; Settings (gear) &rarr; Settings for my calendars &rarr; pick a calendar &rarr; scroll to Integrate calendar &rarr; copy the Secret address in iCal format.<br>
-          <strong>Apple iCloud:</strong> right-click a shared calendar &rarr; Share Calendar &rarr; Public Calendar &rarr; copy the link.<br>
-          <strong>Outlook 365:</strong> Calendar settings &rarr; Shared calendars &rarr; Publish a calendar &rarr; copy the ICS link.
-        </div>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Default Event Type</label>
-        <select class="field-input" id="calSubType">
-          <option value="class">Class</option>
-          <option value="exam">Exam</option>
-          <option value="meeting">Meeting</option>
-          <option value="study">Study</option>
-          <option value="ec">Extracurricular</option>
-          <option value="free">Free</option>
-          <option value="meal">Meal</option>
-          <option value="sleep">Sleep</option>
-          <option value="work">Work</option>
-          <option value="other" selected>Other</option>
-        </select>
-        <div class="field-hint calsub-modal-hint">Events default to this type. You can change any event individually after import.</div>
-      </div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn-cancel" onclick="Settings.closeAddCalSub()">Cancel</button>
-      <button class="btn-save" onclick="Settings.commitAddCalSub()">Add &amp; Sync</button>
-    </div>
   </div>
 </div>
 
@@ -712,35 +661,22 @@
               <div class="settings-row-title">Force Sync Now</div>
               <div class="settings-row-sub">Pull the latest data from the server</div>
             </div>
-            <button class="btn-cancel" onclick="Settings.forcePull()">Pull</button>
+            <button class="btn-cancel" onclick="Settings.forcePull()" style="padding:6px 14px;font-size:13px">Pull</button>
           </div>
           <div class="settings-row">
             <div class="settings-row-main">
               <div class="settings-row-title">Export Schedule (iCal)</div>
               <div class="settings-row-sub">Download a .ics file for calendar apps</div>
             </div>
-            <button class="btn-cancel" onclick="Settings.exportICal()">Export</button>
+            <button class="btn-cancel" onclick="Settings.exportICal()" style="padding:6px 14px;font-size:13px">Export</button>
           </div>
           <div class="settings-row">
             <div class="settings-row-main">
               <div class="settings-row-title">Print Today</div>
               <div class="settings-row-sub">Print-friendly view of today</div>
             </div>
-            <button class="btn-cancel" onclick="window.print()">Print</button>
+            <button class="btn-cancel" onclick="window.print()" style="padding:6px 14px;font-size:13px">Print</button>
           </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Calendar Subscriptions</div>
-        <div class="settings-list" id="calSubsList">
-          <!-- populated by Settings.renderCalSubs() -->
-        </div>
-        <div class="calsub-add-wrap">
-          <div class="calsub-hint">
-            Import events from Google Calendar, Apple Calendar, Outlook, or any iCal feed. In Google Calendar: Settings &rarr; Integrate calendar &rarr; copy the Secret address in iCal format. Events stay editable. Any changes you make to a type or class are preserved on re-sync, and events you delete stay deleted.
-          </div>
-          <button class="btn-secondary" onclick="Settings.showAddCalSub()">+ Add Calendar</button>
         </div>
       </div>
 
@@ -830,7 +766,7 @@
       <div class="ai-hd-avatar">
         <svg viewBox="0 0 20 20" fill="none"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z" fill="rgba(255,255,255,.9)"/><circle cx="7.5" cy="9" r="1" fill="#007aff"/><circle cx="12.5" cy="9" r="1" fill="#007aff"/><path d="M7 12.5c1 1 2 1.5 3 1.5s2-.5 3-1.5" stroke="#007aff" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
       </div>
-      <div class="ai-hd-title-text">
+      <div>
         <div class="ai-hd-name">Claude</div>
         <div class="ai-hd-sub">Your planner assistant</div>
       </div>
@@ -857,7 +793,6 @@
 <script src="js/month.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/templates.js"></script>
-<script src="js/calendar.js"></script>
 <script src="js/quickadd.js"></script>
 <script src="js/cmdk.js"></script>
 <script src="js/ai.js"></script>

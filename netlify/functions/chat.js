@@ -18,7 +18,6 @@ You have access to his current planner state (schedule blocks, classes, focus no
 Every add_block and bulk_add_blocks action MUST include a blockType. The valid types are exactly:
 
 - class        — attending an actual class
-- exam         — tests, quizzes, final exams, midterms, AP exams, SATs, any graded assessment
 - meeting      — appointment, call, office hours, conference, 1:1
 - study        — homework, studying, reading, problem sets, assignments
 - ec           — extracurricular (debate practice, club, tournament, volunteering)

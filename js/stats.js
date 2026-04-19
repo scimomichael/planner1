@@ -3,12 +3,12 @@
 // ═════════════════════════════════════════════════════════
 const Stats = (() => {
   const BLOCK_COLORS = {
-    class: '#007aff', exam: '#c2a878', meeting: '#5ac8fa', study: '#af52de',
+    class: '#007aff', meeting: '#5ac8fa', study: '#af52de',
     ec: '#34c759', free: '#8e8e93', meal: '#ff9500',
     sleep: '#5856d6', work: '#ff2d55', other: '#8e8e93',
   };
   const BLOCK_LABELS = {
-    class: 'Class', exam: 'Exam', meeting: 'Meeting', study: 'Study',
+    class: 'Class', meeting: 'Meeting', study: 'Study',
     ec: 'Extracurricular', free: 'Free', meal: 'Meal',
     sleep: 'Sleep', work: 'Work', other: 'Other',
   };

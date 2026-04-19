@@ -8,7 +8,7 @@ const AI = (() => {
 
   const WELCOME = {
     role: 'assistant',
-    content: "Hi Michael! Tell me what to add, move, or find and I'll handle it. What type of block, what day and time, which class, and any details you want included."
+    content: "Hi Michael! Tell me what to add, move, or find — I'll handle it. What type of block, what day and time, which class, and any details you want included."
   };
 
   function init() {
@@ -56,31 +56,12 @@ const AI = (() => {
   }
 
   function _formatMarkdown(text) {
-    // Strip any stray ```actions blocks (server already removes them, but
-    // be defensive in case of partial/streamed output) and any other triple-
-    // backtick code fences — we render the language-less body as a block.
-    let t = (text || '').replace(/```actions[\s\S]*?```/g, '').trim();
-    // Collapse 3+ consecutive newlines down to 2 so we don't get walls of
-    // blank space between paragraphs.
-    t = t.replace(/\n{3,}/g, '\n\n');
-    // Extract fenced code blocks before escaping, so the backticks inside
-    // code don't get re-parsed as inline code.
-    const codeBlocks = [];
-    t = t.replace(/```([\s\S]*?)```/g, (_, code) => {
-      codeBlocks.push(code.trim());
-      return `\u0000CB${codeBlocks.length - 1}\u0000`;
-    });
-    t = Store.esc(t);
-    // Bold must run BEFORE italic so ** isn't consumed by the * regex.
-    t = t.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
-    t = t.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
-    t = t.replace(/`([^`\n]+?)`/g, '<code class="ai-code-inline">$1</code>');
+    // Minimal markdown: **bold**, *italic*, `code`, newlines
+    let t = Store.esc(text);
+    t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    t = t.replace(/`(.+?)`/g, '<code style="font-family:var(--mono);background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-size:.9em">$1</code>');
     t = t.replace(/\n/g, '<br>');
-    // Restore code blocks (re-escape their contents since we skipped esc).
-    t = t.replace(/\u0000CB(\d+)\u0000/g, (_, i) => {
-      const raw = codeBlocks[Number(i)] || '';
-      return `<pre class="ai-code-block">${Store.esc(raw)}</pre>`;
-    });
     return t;
   }
 

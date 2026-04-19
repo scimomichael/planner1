@@ -14,7 +14,6 @@ const Store = (() => {
   let templates = ls.get('templates') || _defaultTemplates();
   let classClr  = ls.get('classClr')  || {};
   let classes   = ls.get('classes')   || _defaultClasses(classClr);
-  let calSubs   = ls.get('calSubs')   || [];   // iCal subscriptions
   let meta      = ls.get('meta')      || { lastPull: 0, lastPush: 0 };
 
   function _defaultClasses(legacyColors) {
@@ -78,7 +77,6 @@ const Store = (() => {
     ls.set('templates', templates);
     ls.set('classClr', classClr);
     ls.set('classes', classes);
-    ls.set('calSubs', calSubs);
     ls.set('meta', meta);
     _queuePush();
   }
@@ -103,11 +101,7 @@ const Store = (() => {
   }
   function loadFocus() {
     const el = document.getElementById('focusInput');
-    if (!el) return;
-    // Don't clobber the user's typing if the focus input is currently active.
-    // sync pulls or App.refresh() shouldn't erase a half-written focus note.
-    if (document.activeElement === el) return;
-    el.value = focusMap[todayStr()] || '';
+    if (el) el.value = focusMap[todayStr()] || '';
   }
 
   // ── Cross-device sync ────────────────────────────────
@@ -123,7 +117,7 @@ const Store = (() => {
       const res = await fetch('/api/sync?action=push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, calSubs, meta }),
+        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, meta }),
       });
       if (!res.ok) {
         let msg = 'Sync failed';
@@ -165,7 +159,6 @@ const Store = (() => {
         if (Array.isArray(r.templates) && r.templates.length) { templates = r.templates; ls.set('templates', templates); }
         if (r.classClr && typeof r.classClr === 'object') { classClr = r.classClr; ls.set('classClr', classClr); }
         if (Array.isArray(r.classes) && r.classes.length) { classes = r.classes; ls.set('classes', classes); }
-        if (Array.isArray(r.calSubs)) { calSubs = r.calSubs; ls.set('calSubs', calSubs); }
         meta.lastPull = rTime; ls.set('meta', meta);
         _setSync('ok', 'Synced');
         return true;
@@ -253,9 +246,9 @@ const Store = (() => {
     const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = msg;
-    el.classList.add('show');
+    el.style.opacity = '1';
     clearTimeout(el._t);
-    el._t = setTimeout(() => { el.classList.remove('show'); }, 1800);
+    el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
   }
 
   function clearSchedule() { schedule = {}; persist(); }
@@ -359,84 +352,6 @@ const Store = (() => {
     }
   }
 
-  // ── Calendar subscriptions ────────────────────────────
-  function getCalSubs() { return calSubs.slice(); }
-  function getCalSub(id) { return calSubs.find(s => s.id === id) || null; }
-  function addCalSub({ url, label, defaultType }) {
-    const sub = {
-      id: 'cal_' + Math.random().toString(36).slice(2),
-      url: String(url || '').trim(),
-      label: String(label || '').trim() || 'Calendar',
-      defaultType: defaultType || 'other',
-      lastSynced: 0,
-      lastCount: 0,
-      lastError: '',
-      events: {}, // map of icalUid -> { dk, blockId, userEdited }
-    };
-    calSubs.push(sub);
-    persist();
-    return sub;
-  }
-  function updateCalSub(id, patch) {
-    const s = getCalSub(id);
-    if (!s) return;
-    Object.assign(s, patch);
-    persist();
-  }
-  function removeCalSub(id, alsoRemoveEvents = true) {
-    const sub = getCalSub(id);
-    if (!sub) return;
-    if (alsoRemoveEvents) {
-      // Remove any blocks that were imported from this subscription AND
-      // have not been edited by the user. User-edited blocks are kept.
-      for (const dk in schedule) {
-        const list = schedule[dk];
-        schedule[dk] = list.filter(b => {
-          if (b.importSource !== id) return true;
-          if (b.userEdited) return true;
-          return false;
-        });
-        if (!schedule[dk].length) delete schedule[dk];
-      }
-    }
-    calSubs = calSubs.filter(s => s.id !== id);
-    persist();
-    if (typeof App !== 'undefined') App.refresh();
-  }
-  function markBlockUserEdited(dk, blockId) {
-    const list = schedule[dk];
-    if (!list) return;
-    const b = list.find(x => x.id === blockId);
-    if (!b || !b.importSource) return;
-    b.userEdited = true;
-    persist();
-  }
-  // Tombstone a deleted imported event so syncSub() won't re-add it.
-  function recordCalSubDeletion(subId, uid) {
-    const sub = getCalSub(subId);
-    if (!sub || !uid) return;
-    if (!Array.isArray(sub.deletedUids)) sub.deletedUids = [];
-    if (!sub.deletedUids.includes(uid)) sub.deletedUids.push(uid);
-    // Also remove from events map if present
-    if (sub.events && sub.events[uid]) delete sub.events[uid];
-    persist();
-  }
-
-
-  async function showSyncDiag() {
-    toast('Checking sync…');
-    try {
-      const res = await fetch('/api/sync?action=ping');
-      const text = await res.text();
-      let pretty = text;
-      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch {}
-      // Use alert() — simple and unmistakable. Diagnostics aren't polish.
-      alert('Sync diagnostics (status ' + res.status + '):\n\n' + pretty);
-    } catch (e) {
-      alert('Could not reach /api/sync. ' + (e.message || e));
-    }
-  }
-
   return {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
@@ -449,8 +364,5 @@ const Store = (() => {
     getClassColor, setClassColor,
     getClasses, getClassByName, addClass, updateClass, removeClass,
     countClassAssignments, reorderClasses,
-    getCalSubs, getCalSub, addCalSub, updateCalSub, removeCalSub, markBlockUserEdited,
-    recordCalSubDeletion,
-    showSyncDiag,
   };
 })();
