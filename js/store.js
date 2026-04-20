@@ -32,6 +32,10 @@ const Store = (() => {
 
   function _logChange(entry) {
     try {
+      // Suppress block_* entries while a caller is orchestrating a higher-level
+      // change (e.g. move-block = delete + add, but we want one move entry).
+      // The caller uses setChangeSource('_suppress_block_log') + finally restore.
+      if (_changeSource === '_suppress_block_log' && entry && typeof entry.type === 'string' && entry.type.startsWith('block_')) return;
       const ts = Date.now();
       const e = Object.assign({ ts, source: _changeSource }, entry);
       changeLog.push(e);

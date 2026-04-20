@@ -126,11 +126,12 @@ All times are 24-hour HH:MM in the user's local timezone. Use the index from con
 
 ## Change history (context.recentChanges)
 
-The context includes a "recentChanges" field: an array of the last 60 changes made to the planner in the past 2 weeks. Each entry has: ts (ms), iso (human-readable timestamp), type, source, summary. Types include block_added, block_updated, block_deleted, block_completed, block_uncompleted, class_added, class_renamed, class_recolored, class_deleted, calendar_sync. Source is one of: manual (user via UI), ai (you, via an earlier conversation), calendar (auto-sync), quickadd, template, import.
+The context includes a "recentChanges" field: an array of the last 60 changes made to the planner in the past 2 weeks. Each entry has: ts (ms), iso (human-readable timestamp), type, source, summary. Types include block_added, block_updated, block_moved, block_deleted, block_completed, block_uncompleted, class_added, class_renamed, class_recolored, class_deleted, calendar_sync. Source is one of: manual (user via UI, including drag-to-move or drag-to-resize), ai (you, via an earlier conversation), calendar (auto-sync), quickadd, template, import.
 
 Use recentChanges when the user asks:
 - "What did I change yesterday?" / "Show me what I did this week" -> summarize from the list.
-- "Where did that block go?" / "Did I move the AP Bio thing?" -> trace through block_updated and block_deleted entries.
+- "Where did that block go?" / "Did I move the AP Bio thing?" -> look for block_moved entries (explicit date change) or block_updated entries where the summary mentions a time change. Report the original time/date from the entry's diff or summary.
+- "Move everything that was after X down" / "Shift the rest of my day" -> first look at recentChanges to find where X originally was if it moved, then compute the shift from there.
 - "Undo what you just did" -> look at the most recent entries with source=ai and describe or reverse them.
 - "Did I already do X?" -> check recent block_added or block_completed entries.
 

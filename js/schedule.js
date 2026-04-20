@@ -605,17 +605,54 @@ const Sched = (() => {
   }
 
   function _commitChange(b, dk, bi, changes) {
+    // Build a human summary of what actually changed. This runs for drag-move,
+    // drag-resize, and Option+drag overlay toggles — all three were previously
+    // silent in the changelog which meant the AI couldn't see manual drag edits.
+    const _summarize = (before, after, date) => {
+      const label = after.label || before.label || '?';
+      const parts = [];
+      if (after.start !== undefined && before.start !== after.start) {
+        parts.push('time: ' + (before.start || '?') + '\u2013' + (before.end || '?') + ' \u2192 ' + (after.start || '?') + '\u2013' + (after.end || '?'));
+      } else if (after.end !== undefined && before.end !== after.end) {
+        parts.push('end: ' + (before.end || '?') + ' \u2192 ' + (after.end || '?'));
+      }
+      if (after.overlay !== undefined && !!before.overlay !== !!after.overlay) {
+        parts.push(after.overlay ? 'stacked on top' : 'un-stacked');
+      }
+      let summary = 'Edited "' + label + '" on ' + date;
+      if (parts.length) summary += ' (' + parts.join('; ') + ')';
+      return summary;
+    };
+
     if (b._recurFrom !== undefined) {
       const src = Store.schedule[b._recurFrom];
       if (!src || !src[b._recurBaseIdx]) return;
+      const before = { ...src[b._recurBaseIdx] };
       Store.snapshot();
-      src[b._recurBaseIdx] = { ...src[b._recurBaseIdx], ...changes, userEdited: true };
+      const after = { ...before, ...changes, userEdited: true };
+      src[b._recurBaseIdx] = after;
+      Store.logChange({
+        type: 'block_updated',
+        summary: _summarize(before, after, b._recurFrom) + ' (recurring)',
+        date: b._recurFrom,
+        label: after.label || '',
+        diff: Object.keys(changes).reduce((acc, k) => { acc[k] = { from: before[k], to: after[k] }; return acc; }, {}),
+      });
       Store.persist(); _preserveScroll(); renderBoth();
     } else {
       const list = Store.schedule[dk];
       if (!list || !list[bi]) return;
+      const before = { ...list[bi] };
       Store.snapshot();
-      list[bi] = { ...list[bi], ...changes, userEdited: true };
+      const after = { ...before, ...changes, userEdited: true };
+      list[bi] = after;
+      Store.logChange({
+        type: 'block_updated',
+        summary: _summarize(before, after, dk),
+        date: dk,
+        label: after.label || '',
+        diff: Object.keys(changes).reduce((acc, k) => { acc[k] = { from: before[k], to: after[k] }; return acc; }, {}),
+      });
       Store.persist(); _preserveScroll(); renderBoth();
     }
   }
@@ -986,8 +1023,26 @@ const EditBlock = (() => {
       priority, status, reminder, location, link, overlay, userEdited: true,
     };
     if (newDk !== _dk) {
-      Sched.removeBlock(_dk, _bi);
-      Sched.addBlock(newDk, block);
+      // Cross-date edit: suppress the individual delete/add log entries and
+      // write one coherent "block_moved" entry instead, so the AI sees a move
+      // rather than a delete+create pair.
+      const prevSource = 'manual';
+      Store.setChangeSource('_suppress_block_log');
+      try {
+        Sched.removeBlock(_dk, _bi);
+        Sched.addBlock(newDk, block);
+      } finally {
+        Store.setChangeSource(prevSource);
+      }
+      Store.logChange({
+        type: 'block_moved',
+        summary: 'Moved "' + (block.label || '?') + '" from ' + _dk + ' to ' + newDk + (block.start ? ' at ' + block.start : ''),
+        fromDate: _dk,
+        toDate: newDk,
+        label: block.label || '',
+        start: block.start || '',
+        end: block.end || '',
+      });
     } else {
       Sched.updateBlock(_dk, _bi, block);
     }
