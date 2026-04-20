@@ -184,6 +184,7 @@
     <div class="modal-bd">
       <div class="field-group"><div class="field-label">Calendar Name</div><input class="field-input" id="calSubName" placeholder="e.g. School Calendar"></div>
       <div class="field-group"><div class="field-label">iCal / ICS URL <span class="field-hint">(public Google Calendar, iCal feed, or .ics link)</span></div><input class="field-input" id="calSubUrl" placeholder="https://calendar.google.com/calendar/ical/..."></div>
+      <div class="field-group"><div class="field-label">Secret Key <span class="field-hint">(optional, for private/authenticated calendars)</span></div><input class="field-input" id="calSubSecret" type="password" placeholder="Leave blank for public calendars" autocomplete="off"></div>
       <div class="field-group"><div class="field-label">Default Event Type <span class="field-hint">(you can change individual events after import)</span></div><select class="field-select" id="calSubType"><option value="class">Class</option><option value="exam">Exam</option><option value="meeting">Meeting</option><option value="study">Study</option><option value="ec">EC</option><option value="free">Free</option><option value="meal">Meal</option><option value="work">Work</option><option value="other" selected>Other</option></select></div>
     </div>
     <div class="modal-ft"><button class="btn-cancel" onclick="Settings.closeAddCalSub()">Cancel</button><button class="btn-save" onclick="Settings.commitAddCalSub()">Add Calendar</button></div>
