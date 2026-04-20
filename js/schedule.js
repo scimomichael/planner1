@@ -149,7 +149,18 @@ const Sched = (() => {
       list.forEach(b => {
         if (!b.recur || b.recur === 'none') return;
         if (_recursOn(b, src, dk)) {
-          allBlocks.push({ ...b, _recurFrom: src, _recurBaseIdx: list.indexOf(b) });
+          // Project this recurring source into an instance for date `dk`. If the
+          // user toggled done on a specific occurrence, doneOverrides[dk] holds
+          // that per-date flag; similarly for statusOverrides. Apply them so
+          // the rendered instance reflects the toggle state.
+          const inst = { ...b, _recurFrom: src, _recurBaseIdx: list.indexOf(b) };
+          if (b.doneOverrides && Object.prototype.hasOwnProperty.call(b.doneOverrides, dk)) {
+            inst.done = !!b.doneOverrides[dk];
+          }
+          if (b.statusOverrides && Object.prototype.hasOwnProperty.call(b.statusOverrides, dk)) {
+            inst.status = b.statusOverrides[dk];
+          }
+          allBlocks.push(inst);
         }
       });
     });
@@ -663,8 +674,11 @@ const Sched = (() => {
       if (!src || !src[b._recurBaseIdx]) return;
       const sb = src[b._recurBaseIdx];
       sb.doneOverrides = sb.doneOverrides || {};
+      sb.statusOverrides = sb.statusOverrides || {};
       const wasDone = !!sb.doneOverrides[dk];
       sb.doneOverrides[dk] = !wasDone;
+      // Keep status in sync: completed <-> scheduled for this occurrence only.
+      sb.statusOverrides[dk] = wasDone ? 'scheduled' : 'completed';
       Store.logChange({
         type: wasDone ? 'block_uncompleted' : 'block_completed',
         summary: (wasDone ? 'Marked ' : 'Completed ') + `"${sb.label || '?'}" on ${dk} (recurring)`,
@@ -677,6 +691,9 @@ const Sched = (() => {
       Store.snapshot();
       const wasDone = !!list[bi].done;
       list[bi].done = !wasDone;
+      // Keep status in sync with the done flag. When unchecking, revert to
+      // 'scheduled' so the block stops showing the completed badge.
+      list[bi].status = wasDone ? 'scheduled' : 'completed';
       Store.logChange({
         type: wasDone ? 'block_uncompleted' : 'block_completed',
         summary: (wasDone ? 'Unmarked ' : 'Completed ') + `"${list[bi].label || '?'}" on ${dk}`,
@@ -1038,10 +1055,15 @@ const EditBlock = (() => {
     const overlay = !!document.getElementById('ebOverlay')?.checked;
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
     const orig = Store.schedule[_dk]?.[_bi] || {};
+    // Keep done flag and status in sync: completed -> done=true; anything
+    // else (scheduled/in-progress/cancelled) -> done=false. Matches the
+    // behavior of clicking the check circle on a block.
+    const doneFromStatus = (status === 'completed');
     const block = {
       ...orig, label, type: _type, css, start, end, due, dueTime, dueInClass, classLabel, description, storedTz,
       recur: recurVal === 'none' ? null : recurVal,
       priority, status, reminder, location, link, overlay, userEdited: true,
+      done: doneFromStatus,
     };
     if (newDk !== _dk) {
       // Cross-date edit: suppress the individual delete/add log entries and
