@@ -198,6 +198,7 @@ exports.handler = async (event) => {
       schedule: context?.schedule || {},
       classes: context?.classes || [],
       blockTypes: context?.blockTypes || [],
+      recentChanges: Array.isArray(context?.recentChanges) ? context.recentChanges : [],
     };
 
     const contextBlock = `
