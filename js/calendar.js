@@ -1,19 +1,17 @@
 // Calendar subscription sync module
 // SAFETY CONTRACT:
-//  1. The filter only affects incoming events during import. It NEVER
-//     reaches into Store.schedule to delete or modify blocks that already
-//     exist there. Manual deletion via Sched.removeBlock remains the only
-//     path that removes blocks (and records tombstones).
-//  2. Filtering is strict: the normalized title must EXACTLY equal a
-//     pattern, or start with "<pattern> " / "<pattern>-" / "<pattern>(".
-//     No loose substring matching anywhere.
-//  3. Sync is idempotent. Running it repeatedly (including on every page
-//     load) never compounds data loss.
-//  4. Filtered events are NOT tombstoned. If the filter list changes
-//     later, previously-filtered events will import normally.
+//   1. The filter only affects incoming events. It never reads or modifies
+//      existing blocks in Store.schedule beyond the update-in-place path
+//      that matches on importUid.
+//   2. Imports NEVER get a classLabel (they are not linked to any of the
+//      user's tagged classes like AP Biology), but they CAN use the
+//      'class' block type so they display with blue Class coloring.
+//   3. Sync is idempotent. Auto-sync every page load doesn't compound
+//      data loss.
+//   4. Filtered events are NOT tombstoned. If the filter list changes
+//      later, previously-filtered events will import normally on next sync.
+//   5. User-edited imported blocks (userEdited: true) are never overwritten.
 const Cal = (() => {
-  // The specific recurring school events the user wants excluded. Add more
-  // here any time. Case-insensitive, punctuation-insensitive.
   const FILTERED_PATTERNS = [
     'junior advisory activity',
     'daily worship',
@@ -26,29 +24,17 @@ const Cal = (() => {
   function _normalize(s) {
     return (s || '')
       .toLowerCase()
-      .replace(/[()[\]{}*"']/g, ' ')     // strip brackets, asterisks, quotes
-      .replace(/[_\/\\.,;:!?]/g, ' ')   // strip common punctuation (NOT dashes)
+      .replace(/[()[\]{}*"']/g, ' ')
+      .replace(/[_\/\\.,;:!?]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
 
-  // Strict match. Exact equality OR the pattern followed by a natural
-  // separator (space, dash, paren-ish, slash). This catches titles like:
-  //   "Daily Worship"
-  //   "Daily Worship (DW)"           -> normalized "daily worship  dw"
-  //   "Daily Worship - Chapel"       -> normalized "daily worship - chapel"
-  //   "Unproctored Spring SH* (M)"   -> normalized "unproctored spring sh   m"
-  // but NOT:
-  //   "Advisory Meeting"
-  //   "Pre-Junior Advisory Activity" (because pattern would have to be at start)
   function isFiltered(title) {
     const n = _normalize(title);
     if (!n) return false;
     for (const pat of FILTERED_PATTERNS) {
       if (n === pat) return true;
-      // Must start with the pattern AND be followed by a separator char
-      // (space or dash). If the pattern is followed by a letter/digit, that
-      // means it's a different word and we do NOT filter.
       if (n.length > pat.length && n.startsWith(pat)) {
         const next = n[pat.length];
         if (next === ' ' || next === '-') return true;
@@ -60,10 +46,11 @@ const Cal = (() => {
   async function syncSub(sub) {
     if (!sub || !sub.url) return;
     try {
+      const tz = (typeof Sched !== 'undefined' && Sched.getLocalTz) ? Sched.getLocalTz() : 'America/Chicago';
       const res = await fetch('/api/ical', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sub.url, secret: sub.secret || '' }),
+        body: JSON.stringify({ url: sub.url, secret: sub.secret || '', tz }),
       });
       if (!res.ok) {
         let msg = 'Sync failed: ' + res.status;
@@ -80,54 +67,57 @@ const Cal = (() => {
       const todayStr = Store.todayStr();
       let added = 0, updated = 0, skipped = 0, filtered = 0;
 
+      // Import type for this subscription. Imports use the subscription's
+      // configured type (class, other, exam, etc.) -- so if the user picked
+      // Class for their school calendar, those events show up blue.
+      // Imports NEVER carry a classLabel though.
+      const importType = sub.defaultType || 'class';
+      const importCss = Sched.getBlockTypes().find(t => t.id === importType)?.css || 'sb-class';
+
       for (const ev of data.events) {
         if (!ev.date || !ev.start) continue;
-
-        // Skip past events
         if (ev.date < todayStr) continue;
-
-        // Filter recurring school events (applies to NEW imports only)
         if (isFiltered(ev.summary)) { filtered++; continue; }
 
         const uid = ev.uid || `${sub.id}_${ev.date}_${ev.start}`;
-
-        // Skip tombstoned (user-deleted) events
         if (Store.isCalTombstoned(uid)) { skipped++; continue; }
 
-        // Check if this block already exists on this date
         const existing = Store.schedule[ev.date] || [];
         const alreadyIdx = existing.findIndex(b => b.importUid === uid);
 
         if (alreadyIdx >= 0) {
           // Don't overwrite user-edited blocks
           if (existing[alreadyIdx].userEdited) { skipped++; continue; }
-          // Update non-user-edited in place (fresh title/time/location/desc)
+          const prev = existing[alreadyIdx];
+          // Re-sync authoritative feed fields AND correct any stale type/classLabel
+          // from previous broken versions. type resets to sub default; classLabel ''
           existing[alreadyIdx] = {
-            ...existing[alreadyIdx],
+            ...prev,
             label: ev.summary || 'Event',
             start: ev.start,
             end: ev.end || ev.start,
-            description: ev.description || existing[alreadyIdx].description || '',
-            location: ev.location || existing[alreadyIdx].location || '',
+            description: ev.description || prev.description || '',
+            location: ev.location || prev.location || '',
+            classLabel: '',         // imports never carry a class label
+            type: importType,
+            css: importCss,
           };
           updated++;
           continue;
         }
 
         // Add new block
-        const type = sub.defaultType || 'other';
-        const css = Sched.getBlockTypes().find(t => t.id === type)?.css || 'sb-other';
         if (!Store.schedule[ev.date]) Store.schedule[ev.date] = [];
         Store.schedule[ev.date].push({
           label: ev.summary || 'Event',
-          type,
-          css,
+          type: importType,
+          css: importCss,
           start: ev.start,
           end: ev.end || ev.start,
           due: null,
           classLabel: '',
           description: ev.description || '',
-          storedTz: Sched.getLocalTz(),
+          storedTz: tz,
           recur: null,
           recurUntil: null,
           done: false,
@@ -146,12 +136,8 @@ const Cal = (() => {
       Store.persist();
       if (typeof App !== 'undefined' && App.refresh) App.refresh();
 
-      // Build concise toast. On auto-sync (boot), stay quiet if nothing changed.
       const changed = added + updated;
-      if (changed === 0 && filtered === 0 && skipped === 0) {
-        // truly nothing happened; don't toast
-        return;
-      }
+      if (changed === 0 && filtered === 0 && skipped === 0) return;
       const parts = [];
       if (added) parts.push(`${added} added`);
       if (updated) parts.push(`${updated} updated`);

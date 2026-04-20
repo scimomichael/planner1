@@ -253,17 +253,36 @@ const Sched = (() => {
 
       const extras = [classPill, statusBadge, dueHtml, locChip, descSnip].filter(Boolean).join('');
 
-      block.innerHTML =
-        '<div class="sched-block-check' + (b.done ? ' done' : '') + '" data-act="check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
-        recurBadge +
-        '<div class="sched-block-name">' + priDot + '<span class="sched-block-name-text">' + Store.esc(b.label) + '</span>' + linkChip + '</div>' +
-        (timeDisp ? '<div class="sched-block-time">' + timeDisp + '</div>' : '') +
-        (extras ? '<div class="sched-block-extras">' + extras + '</div>' : '') +
-        '<div class="sched-block-resize" data-act="resize"></div>';
+      if (isShort) {
+        // Compact single-row layout: Title · Time · Class (all inline, ellipsizing).
+        // This keeps essential info visible even when the block is 28-60px tall.
+        const shortClass = b.classLabel
+          ? '<span class="sched-block-short-cls" style="color:' + (Store.getClassColor(b.classLabel) || 'currentColor') + '">' + Store.esc(b.classLabel) + '</span>'
+          : '';
+        block.innerHTML =
+          '<div class="sched-block-check' + (b.done ? ' done' : '') + '" data-act="check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+          recurBadge +
+          '<div class="sched-block-short-row">' +
+            priDot +
+            '<span class="sched-block-name-text">' + Store.esc(b.label) + '</span>' +
+            (timeDisp ? '<span class="sched-block-short-sep">\xb7</span><span class="sched-block-short-time">' + timeDisp + '</span>' : '') +
+            (shortClass ? '<span class="sched-block-short-sep">\xb7</span>' + shortClass : '') +
+            linkChip +
+          '</div>' +
+          '<div class="sched-block-resize" data-act="resize"></div>';
+      } else {
+        block.innerHTML =
+          '<div class="sched-block-check' + (b.done ? ' done' : '') + '" data-act="check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+          recurBadge +
+          '<div class="sched-block-name">' + priDot + '<span class="sched-block-name-text">' + Store.esc(b.label) + '</span>' + linkChip + '</div>' +
+          (timeDisp ? '<div class="sched-block-time">' + timeDisp + '</div>' : '') +
+          (extras ? '<div class="sched-block-extras">' + extras + '</div>' : '') +
+          '<div class="sched-block-resize" data-act="resize"></div>';
+      }
 
       _wireBlockInteraction(block, b, bi, allBlocks, dk, HOURS, SLOT_H, totalH);
 
-      // Hover popover for short blocks
+      // Hover popover for short blocks (shows full details on side panel)
       if (isShort) {
         try { _wirePopover(block, b, timeDisp); } catch (e) { console.error('Popover error:', e); }
       }

@@ -173,8 +173,13 @@ html[data-theme="dark"]{
 .sched-block-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
 .sched-block-time{font-size:10.5px;font-family:var(--mono);font-weight:500;opacity:0.7;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sched-block-extras{display:flex;flex-direction:column;gap:2px;min-width:0}
-.sched-block[data-short="1"] .sched-block-extras{display:none}
-.sched-block[data-short="1"] .sched-block-time{display:none}
+/* Short-block single-row layout -- shows title + time + class inline */
+.sched-block[data-short="1"]{padding:4px 34px 4px 10px;gap:0}
+.sched-block-short-row{display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden;font-size:12.5px;font-weight:600;letter-spacing:-0.01em;line-height:1.25}
+.sched-block-short-row .sched-block-name-text{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sched-block-short-sep{opacity:0.5;font-weight:400;flex:none}
+.sched-block-short-time{font-size:10.5px;font-family:var(--mono);font-weight:500;opacity:0.75;white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
+.sched-block-short-cls{font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
 .sched-block-due{font-size:10px;font-weight:600;font-family:var(--mono);padding:1px 6px;border-radius:var(--r-full);align-self:flex-start;white-space:nowrap;background:rgba(255,255,255,0.5);color:inherit;letter-spacing:0.01em;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .sched-block-due.due-over{background:var(--red);color:#fff}.sched-block-due.due-today{background:var(--red-bg);color:var(--red)}
 .sched-block-due.due-soon{background:var(--orange-bg);color:var(--orange)}.sched-block-due.due-later{background:rgba(255,255,255,0.4);opacity:0.85}
