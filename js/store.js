@@ -81,6 +81,66 @@ const Store = (() => {
     return bits.join(' ');
   }
 
+  // Merge affirmation-related state from a pulled sync payload. Affirmation
+  // data is cached output (not user-authored edits), so it uses different
+  // merge rules than the rest of the state:
+  //   - affirmToday: remote wins IF remote's date matches local today. Stale
+  //                  data from yesterday is ignored. If a device has generated
+  //                  today's affirmation first, every other device on any
+  //                  browser gets the same text and font with zero cost.
+  //   - affirmSeen:  union merge. Caps at 5000 to match local cap.
+  //   - affirmFonts: dedup by date (prefer remote's for a given date, since
+  //                  that's the committed picked font for that calendar day).
+  function _mergeAffirmationData(r) {
+    try {
+      const todayStrLocal = _todayStrForAffirm();
+      // affirmToday
+      if (r && r.affirmToday && r.affirmToday.date === todayStrLocal && r.affirmToday.text && r.affirmToday.fontKey) {
+        // Only write if local is missing or also-today but different
+        const localToday = _readLS('pl3_affirm_today', null);
+        const shouldWrite = !localToday
+          || localToday.date !== todayStrLocal
+          || localToday.text !== r.affirmToday.text
+          || localToday.fontKey !== r.affirmToday.fontKey;
+        if (shouldWrite) {
+          try { localStorage.setItem('pl3_affirm_today', JSON.stringify(r.affirmToday)); } catch {}
+          // If the Affirmation module is already rendered with a fallback or
+          // placeholder, ask it to re-render from the new cached entry.
+          if (typeof Affirmation !== 'undefined' && Affirmation.rerenderFromCache) {
+            Affirmation.rerenderFromCache();
+          }
+        }
+      }
+      // affirmSeen: union merge
+      if (Array.isArray(r && r.affirmSeen)) {
+        const localSeen = _readLS('pl3_affirm_seen', []);
+        const merged = Array.from(new Set([...localSeen, ...r.affirmSeen]));
+        if (merged.length > 5000) merged.splice(0, merged.length - 5000);
+        try { localStorage.setItem('pl3_affirm_seen', JSON.stringify(merged)); } catch {}
+      }
+      // affirmFonts: dedup by date
+      if (Array.isArray(r && r.affirmFonts)) {
+        const localFonts = _readLS('pl3_affirm_fonts', []);
+        const byDate = {};
+        localFonts.forEach(f => { if (f && f.date) byDate[f.date] = f; });
+        // Remote wins for any given date
+        r.affirmFonts.forEach(f => { if (f && f.date) byDate[f.date] = f; });
+        const merged = Object.values(byDate).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        if (merged.length > 120) merged.splice(0, merged.length - 120);
+        try { localStorage.setItem('pl3_affirm_fonts', JSON.stringify(merged)); } catch {}
+      }
+    } catch (e) { console.error('[affirm-sync] merge failed', e); }
+  }
+  function _readLS(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } }
+  function _todayStrForAffirm() {
+    // Use the same local-date format Affirmation uses
+    try {
+      const d = new Date();
+      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + dd;
+    } catch { return new Date().toISOString().slice(0, 10); }
+  }
+
   function _defaultClasses(legacyColors) {
     const base = [
       { name: 'AP Language',          color: '#ff3b30' },
@@ -155,12 +215,22 @@ const Store = (() => {
     _pushTimer = setTimeout(_doPush, 1200);
     _setSync('syncing', 'Syncing...');
   }
+  // Public alias so the Affirmation module can trigger a sync when it commits
+  // a new daily affirmation. The 1.2s debounce handles rapid-fire cases.
+  function queueAffirmSync() { _queuePush(); }
   async function _doPush() {
     try {
+      // Gather affirmation state so it rides the sync pipeline. These are
+      // cached outputs (not user-authored) so they're always included in push.
+      // The reader does unconditional-merge logic (see pull()).
+      const _readLS = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
+      const affirmToday = _readLS('pl3_affirm_today', null);
+      const affirmSeen = _readLS('pl3_affirm_seen', []);
+      const affirmFonts = _readLS('pl3_affirm_fonts', []);
       const res = await fetch('/api/sync?action=push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, calSubs, calTombstones, changeLog, meta }),
+        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, calSubs, calTombstones, changeLog, affirmToday, affirmSeen, affirmFonts, meta }),
       });
       if (!res.ok) {
         let msg = 'Sync failed';
@@ -214,9 +284,14 @@ const Store = (() => {
         }
         meta.lastPull = rTime; ls.set('meta', meta);
         _setSync('ok', 'Synced');
+        _mergeAffirmationData(r);
         return true;
       }
       _setSync('ok', 'Up to date');
+      // Still merge affirmation data even on "up to date" path, because these
+      // are cached outputs and the remote may have picked today's affirmation
+      // on another device since the last time this one pushed.
+      _mergeAffirmationData(r);
       return false;
     } catch (e) {
       _setSync('err', 'Offline');
@@ -465,6 +540,7 @@ const Store = (() => {
     persist, snapshot, undo, redo,
     pull, showSyncDiag,
     setChangeSource, getChangeLog, clearChangeLog, logChange,
+    queueAffirmSync,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays, monthDays,
     duePill, clsPill, esc, toast,
     clearSchedule, clearTemplates,

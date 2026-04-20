@@ -173,6 +173,11 @@ const Affirmation = (() => {
       if (fonts.length > 120) fonts.splice(0, fonts.length - 120);
       _writeJSON(STORE_FONTS, fonts);
     }
+    // Trigger cross-device push so other devices (browsers, iPhone, etc.) get
+    // today's affirmation without needing to regenerate it themselves.
+    if (typeof Store !== 'undefined' && Store.queueAffirmSync) {
+      Store.queueAffirmSync();
+    }
   }
 
   async function init() {
@@ -242,5 +247,20 @@ const Affirmation = (() => {
     await aiPromise;
   }
 
-  return { init };
+  // Called by Store.pull() when it merges in an affirmToday from another
+  // device. Swaps the displayed affirmation to the newly-cached one without
+  // running the AI fetch/fallback pipeline again. If today's cached entry is
+  // missing or stale, does nothing — the normal init() flow will handle it.
+  function rerenderFromCache() {
+    try {
+      const today = _todayKey();
+      const cached = _readJSON(STORE_TODAY, null);
+      if (!cached || cached.date !== today || !cached.text || !cached.fontKey) return;
+      const font = FONTS.find(f => f.key === cached.fontKey) || FONTS[0];
+      _loadFont(font);
+      _render(cached.text, font);
+    } catch (e) { console.error('[affirm] rerenderFromCache failed', e); }
+  }
+
+  return { init, rerenderFromCache };
 })();
