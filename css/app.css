@@ -182,7 +182,24 @@ html[data-theme="dark"]{
 .sched-block-overlay{box-shadow:var(--elev-3),0 0 0 1.5px var(--surface)}
 .sched-block-overlay:hover{box-shadow:var(--elev-3),0 0 0 1.5px var(--surface),0 4px 14px rgba(0,0,0,0.14)}
 .sched-block-overlay-dragging{opacity:0.92;box-shadow:var(--elev-3),0 0 0 2px var(--blue)}
-.sched-block.sched-block-done{opacity:0.48}.sched-block.sched-block-done .sched-block-name{text-decoration:line-through}
+.sched-block.sched-block-done{opacity:0.48}
+.sched-block.sched-block-done .sched-block-name,
+.sched-block.sched-block-done .sched-block-name-text,
+.sched-block.sched-block-done .sched-block-short-row,
+.sched-block.sched-block-done .sched-block-short-title,
+.sched-block.sched-block-done .sched-block-short-cls,
+.sched-block.sched-block-done .sched-block-short-time,
+.sched-block.sched-block-done .sched-block-time{text-decoration:line-through;text-decoration-thickness:1.3px}
+/* status-completed is the twin of .sched-block-done -- same visual so the
+   circle toggle and the Status dropdown produce identical results */
+.sched-block.status-completed{opacity:0.48}
+.sched-block.status-completed .sched-block-name,
+.sched-block.status-completed .sched-block-name-text,
+.sched-block.status-completed .sched-block-short-row,
+.sched-block.status-completed .sched-block-short-title,
+.sched-block.status-completed .sched-block-short-cls,
+.sched-block.status-completed .sched-block-short-time,
+.sched-block.status-completed .sched-block-time{text-decoration:line-through;text-decoration-thickness:1.3px}
 .sched-block-name{font-weight:600;font-size:13px;letter-spacing:-0.01em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px;min-width:0}
 .sched-block-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
 .sched-block-time{font-size:10.5px;font-family:var(--mono);font-weight:500;opacity:0.7;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
