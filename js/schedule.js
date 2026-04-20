@@ -228,6 +228,17 @@ const Sched = (() => {
     });
     const columnData = assignColumns(allBlocks);
     const showBlockDue = Settings.get('sBlockDue', true);
+    // Whether to show the globe icon next to block times when the block was
+    // created in a different timezone than the one the user is viewing from.
+    const showTzIndicators = Settings.get('sTzIndicators', true);
+    // Render a small globe icon + tooltip when the block's storedTz differs
+    // from the current local tz. Returns empty string when no indicator is warranted.
+    const _tzChip = (b) => {
+      if (!showTzIndicators) return '';
+      if (!b.storedTz || b.storedTz === localTz) return '';
+      const tip = 'Shown in your local time. Originally set in ' + b.storedTz + ' (you are viewing from ' + localTz + ')';
+      return '<span class="sched-block-tz" title="' + Store.esc(tip) + '"><svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 7h11M7 1.5c2 1.8 3 3.6 3 5.5s-1 3.7-3 5.5M7 1.5c-2 1.8-3 3.6-3 5.5s1 3.7 3 5.5" stroke="currentColor" stroke-width="1"/></svg></span>';
+    };
 
     allBlocks.forEach((b, bi) => {
       const sM = toMins(b._dispStart);
@@ -315,7 +326,7 @@ const Sched = (() => {
           '<div class="sched-block-short-row">' +
             priDot +
             '<span class="sched-block-name-text">' + Store.esc(b.label) + '</span>' +
-            (timeDisp ? '<span class="sched-block-short-sep">\xb7</span><span class="sched-block-short-time">' + timeDisp + '</span>' : '') +
+            (timeDisp ? '<span class="sched-block-short-sep">\xb7</span><span class="sched-block-short-time">' + timeDisp + _tzChip(b) + '</span>' : '') +
             (shortClass ? '<span class="sched-block-short-sep">\xb7</span>' + shortClass : '') +
             (shortDue ? '<span class="sched-block-short-sep">\xb7</span>' + shortDue : '') +
             linkChip +
@@ -326,7 +337,7 @@ const Sched = (() => {
           '<div class="sched-block-check' + (b.done ? ' done' : '') + '" data-act="check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
           recurBadge +
           '<div class="sched-block-name">' + priDot + '<span class="sched-block-name-text">' + Store.esc(b.label) + '</span>' + linkChip + '</div>' +
-          (timeDisp ? '<div class="sched-block-time">' + timeDisp + '</div>' : '') +
+          (timeDisp ? '<div class="sched-block-time">' + timeDisp + _tzChip(b) + '</div>' : '') +
           (extras ? '<div class="sched-block-extras">' + extras + '</div>' : '') +
           '<div class="sched-block-resize" data-act="resize"></div>';
       }
@@ -411,6 +422,10 @@ const Sched = (() => {
           if (b.dueInClass) dueSuffix = ' (in class)';
           else if (b.dueTime) dueSuffix = ' at ' + fmtStr(b.dueTime);
           html += '<div class="sched-block-popover-detail">Due: ' + Store.fmtDate(b.due) + dueSuffix + '</div>';
+        }
+        // Show tz origin when the block was created in a different zone
+        if (b.storedTz && b.storedTz !== localTz && Settings.get('sTzIndicators', true)) {
+          html += '<div class="sched-block-popover-detail" style="opacity:0.75;font-style:italic">Originally set in ' + Store.esc(b.storedTz) + '</div>';
         }
         popover.innerHTML = html;
         document.body.appendChild(popover);
@@ -923,6 +938,21 @@ const EditBlock = (() => {
     buildTzSelect('ebTz');
     const tzSel = document.getElementById('ebTz');
     if (tzSel) tzSel.value = block.storedTz || Sched.getLocalTz();
+    // Show the "originally set in X" helper note when the block's stored tz
+    // differs from the user's current local tz. Only when the setting is enabled.
+    const tzNote = document.getElementById('ebTzNote');
+    if (tzNote) {
+      const stored = block.storedTz || '';
+      const local = Sched.getLocalTz();
+      const showNote = Settings.get('sTzIndicators', true) && stored && stored !== local;
+      if (showNote) {
+        tzNote.textContent = 'This block was originally set in ' + stored + ' while you\u2019re viewing from ' + local + '.';
+        tzNote.style.display = '';
+      } else {
+        tzNote.textContent = '';
+        tzNote.style.display = 'none';
+      }
+    }
     document.getElementById('editBlockOverlay').classList.add('open');
     setTimeout(() => document.getElementById('ebLabel').focus(), 50);
   }
