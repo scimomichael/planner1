@@ -119,7 +119,6 @@ CRITICAL: If the user asks you to add/move/edit anything, you MUST emit the acti
 - duplicate_block: {type:"duplicate_block", date, index, toDate?, newStart?, newEnd?}
 - delete_block: {type:"delete_block", date, index}
 - bulk_add_blocks: {type:"bulk_add_blocks", blocks:[{date, label, blockType, start, end, ...}, ...]}
-- set_focus: {type:"set_focus", date, text}
 - add_class: {type:"add_class", name, color?}
 - rename_class: {type:"rename_class", oldName, newName}
 

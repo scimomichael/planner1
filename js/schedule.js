@@ -64,7 +64,7 @@ const Sched = (() => {
   function toMins(t) { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; }
   function fromMins(m) { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
 
-  let offset = 0, fullOffset = 0;
+  let offset = 0;
   const _initDone = {};
   let _scrollAnchor = null;
   const _preservedScroll = {};
@@ -80,12 +80,9 @@ const Sched = (() => {
   }
 
   function shift(dir) { offset += dir; render('schedGrid', 'schedLabel', offset); }
-  function shiftFull(dir) { fullOffset += dir; render('schedFullGrid', 'schedFullLabel', fullOffset); }
   // Today button: force fresh autoscroll to the now-line (skip auto-preserve)
   function today() { offset = 0; delete _initDone['schedGrid|' + Store.toStr(new Date())]; _skipPreserve['schedGrid'] = true; render('schedGrid', 'schedLabel', 0); }
-  function todayFull() { fullOffset = 0; delete _initDone['schedFullGrid|' + Store.toStr(new Date())]; _skipPreserve['schedFullGrid'] = true; render('schedFullGrid', 'schedFullLabel', 0); }
   function getOffset() { return offset; }
-  function getFullOffset() { return fullOffset; }
   // setOffset for week/month jump without busy loop
   function setOffset(n) { offset = n; }
 
@@ -159,7 +156,7 @@ const Sched = (() => {
     // This makes background sync, edit-save, and any other refresh feel
     // seamless instead of snapping to top. An explicit _preservedScroll
     // or _scrollAnchor set by a caller still wins. _skipPreserve lets
-    // today()/todayFull() force a fresh autoscroll to the now-line.
+    // today() forces a fresh autoscroll to the now-line.
     if (_skipPreserve[gridId]) {
       delete _skipPreserve[gridId];
       delete _preservedScroll[gridId];
@@ -606,16 +603,12 @@ const Sched = (() => {
 
   function renderBoth() {
     render('schedGrid', 'schedLabel', offset);
-    if (document.getElementById('view-schedule')?.classList.contains('active'))
-      render('schedFullGrid', 'schedFullLabel', fullOffset);
   }
 
   function _preserveScroll() {
-    ['schedGrid', 'schedFullGrid'].forEach(gid => {
-      const box = document.getElementById(gid);
-      const sc = box && box.querySelector('.sched-scroll');
-      if (sc) _preservedScroll[gid] = sc.scrollTop;
-    });
+    const box = document.getElementById('schedGrid');
+    const sc = box && box.querySelector('.sched-scroll');
+    if (sc) _preservedScroll['schedGrid'] = sc.scrollTop;
   }
 
   function addBlock(dk, block) {
@@ -636,7 +629,7 @@ const Sched = (() => {
   }
 
   return {
-    shift, shiftFull, today, todayFull, getOffset, getFullOffset, setOffset,
+    shift, today, getOffset, setOffset,
     render, renderBoth, addBlock, updateBlock, removeBlock, toggleDone,
     getBlockTypes: () => BLOCK_TYPES,
     getLocalTz: () => localTz,
@@ -645,9 +638,10 @@ const Sched = (() => {
 })();
 
 
-// Shared helper: updates visual state of the "In-Class" / "11:59 PM" chips
-// on both Add and Edit block modals. Highlights the active preset based on
-// the time input value and inClass flag.
+// Shared helper: highlights the active preset chip based on the time input
+// value and in-class flag. Each chip's data-preset is either "in-class" or
+// a 24h HH:MM string that matches what the time input shows when the chip
+// is the current choice.
 function _refreshDuePresets(timeInputId, inClass) {
   const row = document.getElementById(timeInputId)?.parentElement;
   if (!row) return;
@@ -656,7 +650,7 @@ function _refreshDuePresets(timeInputId, inClass) {
     const kind = btn.dataset.preset;
     let active = false;
     if (kind === 'in-class' && inClass) active = true;
-    else if (kind === '11:59pm' && time === '23:59' && !inClass) active = true;
+    else if (kind !== 'in-class' && time === kind && !inClass) active = true;
     btn.classList.toggle('active', active);
   });
 }
@@ -736,17 +730,17 @@ const BlockModal = (() => {
 
   // "In-Class" and "11:59 PM" preset chips for due time. Also supports "clear".
   let _dueInClass = false;
+  // Preset handler: kind is either "in-class" or a 24h HH:MM string.
+  // Clicking an already-active preset toggles it off (replaces the removed clear button).
   function dueTimePreset(kind) {
     const timeEl = document.getElementById('bDueTime');
     if (kind === 'in-class') {
-      timeEl.value = '';
-      _dueInClass = true;
-    } else if (kind === '11:59pm') {
-      timeEl.value = '23:59';
-      _dueInClass = false;
-    } else if (kind === 'clear') {
-      timeEl.value = '';
-      _dueInClass = false;
+      if (_dueInClass) { _dueInClass = false; timeEl.value = ''; }
+      else { _dueInClass = true; timeEl.value = ''; }
+    } else {
+      // Numeric time like "09:00" or "23:59"
+      if (timeEl.value === kind && !_dueInClass) { timeEl.value = ''; }
+      else { timeEl.value = kind; _dueInClass = false; }
     }
     _refreshDuePresets('bDueTime', _dueInClass);
   }
@@ -821,14 +815,11 @@ const EditBlock = (() => {
   function dueTimePreset(kind) {
     const timeEl = document.getElementById('ebDueTime');
     if (kind === 'in-class') {
-      timeEl.value = '';
-      _dueInClass = true;
-    } else if (kind === '11:59pm') {
-      timeEl.value = '23:59';
-      _dueInClass = false;
-    } else if (kind === 'clear') {
-      timeEl.value = '';
-      _dueInClass = false;
+      if (_dueInClass) { _dueInClass = false; timeEl.value = ''; }
+      else { _dueInClass = true; timeEl.value = ''; }
+    } else {
+      if (timeEl.value === kind && !_dueInClass) { timeEl.value = ''; }
+      else { timeEl.value = kind; _dueInClass = false; }
     }
     _refreshDuePresets('ebDueTime', _dueInClass);
   }

@@ -84,28 +84,6 @@ const Store = (() => {
     _queuePush();
   }
 
-  function saveFocus() {
-    const el = document.getElementById('focusInput');
-    if (!el) return;
-    focusMap[todayStr()] = el.value;
-    ls.set('focus', focusMap);
-    _queuePush();
-  }
-  function setFocus(date, text) {
-    if (!date) return;
-    focusMap[date] = text || '';
-    ls.set('focus', focusMap);
-    _queuePush();
-    if (date === todayStr()) {
-      const el = document.getElementById('focusInput');
-      if (el && document.activeElement !== el) el.value = focusMap[date];
-    }
-  }
-  function loadFocus() {
-    const el = document.getElementById('focusInput');
-    if (el && document.activeElement !== el) el.value = focusMap[todayStr()] || '';
-  }
-
   // Cross-device sync
   let _pushTimer = null;
   function _queuePush() {
@@ -384,7 +362,7 @@ const Store = (() => {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
     persist, snapshot, undo, redo,
-    saveFocus, loadFocus, setFocus, pull, showSyncDiag,
+    pull, showSyncDiag,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays, monthDays,
     duePill, clsPill, esc, toast,
     clearSchedule, clearTemplates,
