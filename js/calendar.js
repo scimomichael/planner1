@@ -43,7 +43,8 @@ const Cal = (() => {
     return false;
   }
 
-  async function syncSub(sub) {
+  async function syncSub(sub, opts) {
+    const silent = !!(opts && opts.silent);
     if (!sub || !sub.url) return;
     try {
       const tz = (typeof Sched !== 'undefined' && Sched.getLocalTz) ? Sched.getLocalTz() : 'America/Chicago';
@@ -55,12 +56,12 @@ const Cal = (() => {
       if (!res.ok) {
         let msg = 'Sync failed: ' + res.status;
         try { const j = await res.json(); if (j && j.error) msg = 'Sync: ' + j.error; } catch {}
-        Store.toast(msg);
+        if (!silent) Store.toast(msg);
         return;
       }
       const data = await res.json();
       if (!data.events || !Array.isArray(data.events)) {
-        Store.toast('No events found');
+        if (!silent) Store.toast('No events found');
         return;
       }
 
@@ -136,6 +137,7 @@ const Cal = (() => {
       Store.persist();
       if (typeof App !== 'undefined' && App.refresh) App.refresh();
 
+      if (silent) return;
       const changed = added + updated;
       if (changed === 0 && filtered === 0 && skipped === 0) return;
       const parts = [];
@@ -145,13 +147,13 @@ const Cal = (() => {
       if (skipped) parts.push(`${skipped} unchanged`);
       Store.toast(`${sub.name}: ${parts.join(', ')}`);
     } catch (e) {
-      Store.toast('Calendar sync error: ' + (e.message || e));
+      if (!silent) Store.toast('Calendar sync error: ' + (e.message || e));
     }
   }
 
-  async function syncAll() {
+  async function syncAll(opts) {
     const subs = Store.getCalSubs() || [];
-    for (const sub of subs) { await syncSub(sub); }
+    for (const sub of subs) { await syncSub(sub, opts); }
   }
 
   return { syncSub, syncAll, isFiltered };

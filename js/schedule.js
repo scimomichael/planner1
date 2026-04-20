@@ -68,6 +68,7 @@ const Sched = (() => {
   const _initDone = {};
   let _scrollAnchor = null;
   const _preservedScroll = {};
+  const _skipPreserve = {};
   function dateFor(off) { const d = new Date(Store.today()); d.setDate(d.getDate() + off); return d; }
   function dayLabel(d) {
     const n = Store.daysUntil(Store.toStr(d));
@@ -80,8 +81,9 @@ const Sched = (() => {
 
   function shift(dir) { offset += dir; render('schedGrid', 'schedLabel', offset); }
   function shiftFull(dir) { fullOffset += dir; render('schedFullGrid', 'schedFullLabel', fullOffset); }
-  function today() { offset = 0; render('schedGrid', 'schedLabel', 0); }
-  function todayFull() { fullOffset = 0; render('schedFullGrid', 'schedFullLabel', 0); }
+  // Today button: force fresh autoscroll to the now-line (skip auto-preserve)
+  function today() { offset = 0; delete _initDone['schedGrid|' + Store.toStr(new Date())]; _skipPreserve['schedGrid'] = true; render('schedGrid', 'schedLabel', 0); }
+  function todayFull() { fullOffset = 0; delete _initDone['schedFullGrid|' + Store.toStr(new Date())]; _skipPreserve['schedFullGrid'] = true; render('schedFullGrid', 'schedFullLabel', 0); }
   function getOffset() { return offset; }
   function getFullOffset() { return fullOffset; }
   // setOffset for week/month jump without busy loop
@@ -145,6 +147,22 @@ const Sched = (() => {
         }
       });
     });
+
+    // AUTO-PRESERVE SCROLL: before we wipe the box, grab the existing
+    // scroller's scrollTop so the new render lands at the same spot.
+    // This makes background sync, edit-save, and any other refresh feel
+    // seamless instead of snapping to top. An explicit _preservedScroll
+    // or _scrollAnchor set by a caller still wins. _skipPreserve lets
+    // today()/todayFull() force a fresh autoscroll to the now-line.
+    if (_skipPreserve[gridId]) {
+      delete _skipPreserve[gridId];
+      delete _preservedScroll[gridId];
+    } else if (_preservedScroll[gridId] === undefined && !(_scrollAnchor && _scrollAnchor.gridId === gridId)) {
+      const existingScroller = box.querySelector('.sched-scroll');
+      if (existingScroller) {
+        _preservedScroll[gridId] = existingScroller.scrollTop;
+      }
+    }
 
     box.innerHTML = '';
     const scroller = document.createElement('div');
