@@ -1,5 +1,5 @@
 // store.js -- state, persistence, cross-device sync
-// Fixes: toast uses classList, calSubs support, showSyncDiag, no em dashes
+// Fixes: toast uses classList, calSubs support, showSyncDiag
 const Store = (() => {
   const LS = k => `pl3_${k}`;
   const ls = {
@@ -15,7 +15,7 @@ const Store = (() => {
   let classes   = ls.get('classes')   || _defaultClasses(classClr);
   let calSubs   = ls.get('calSubs')   || [];
   let meta      = ls.get('meta')      || { lastPull: 0, lastPush: 0 };
-  // Deletion tombstones: importUids that user deleted, so re-sync won't resurrect
+  // Deletion tombstones: importUids that user deleted, so re-sync wont resurrect
   let calTombstones = ls.get('calTombstones') || [];
 
   function _defaultClasses(legacyColors) {
@@ -255,7 +255,7 @@ const Store = (() => {
     return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  // FIX: toast uses classList instead of opacity style
+  // Toast uses classList
   function toast(msg) {
     const el = document.getElementById('toast');
     if (!el) return;
@@ -371,7 +371,7 @@ const Store = (() => {
     if (list && list[bi]) { list[bi].userEdited = true; persist(); }
   }
 
-  // Remove a block and record its importUid as tombstone
+  // Remove a block and record its importUid as tombstone so re-sync doesnt bring it back
   function removeBlock(dk, bi) {
     if (!schedule[dk]) return;
     const b = schedule[dk][bi];

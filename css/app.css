@@ -195,7 +195,7 @@ html[data-theme="dark"] .sched-block-desc{color:rgba(255,255,255,0.68)}
 .sched-block-resize::after{content:'';position:absolute;left:50%;bottom:1px;width:24px;height:2px;background:currentColor;opacity:0.25;border-radius:1px;transform:translateX(-50%);transition:opacity var(--t-fast)}
 .sched-block:hover .sched-block-resize::after{opacity:0.5}
 
-/* Block type colors */
+/* Block type colors -- EXAM is beige/tan */
 .sb-class{background:rgba(10,132,255,0.10);border-color:rgba(10,132,255,0.18);color:#0051c9}
 .sb-exam{background:rgba(194,168,120,0.20);border-color:rgba(194,168,120,0.35);color:#7a5a1f}
 .sb-meeting{background:rgba(48,176,199,0.10);border-color:rgba(48,176,199,0.18);color:#1f7a8c}
@@ -235,8 +235,7 @@ html:not([data-theme="light"]) .sb-other{background:rgba(142,142,147,0.18);borde
 @keyframes popoverIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
 .sched-block-popover-title{font-weight:600;font-size:13px;color:var(--label);margin-bottom:3px}
 .sched-block-popover-time{font-size:11px;font-family:var(--mono);color:var(--label2);margin-bottom:2px}
-.sched-block-popover-class{font-size:11px;color:var(--label2)}
-.sched-block-popover-loc{font-size:11px;color:var(--label3);margin-top:2px}
+.sched-block-popover-detail{font-size:11px;color:var(--label2)}
 
 /* PILLS */
 .cls-chip{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:var(--r-full);letter-spacing:-0.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -288,7 +287,7 @@ html:not([data-theme="light"]) .sb-other{background:rgba(142,142,147,0.18);borde
 .breakdown-value{font-size:12px;font-weight:500;color:var(--label2);font-variant-numeric:tabular-nums;font-family:var(--mono);white-space:nowrap}
 .stats-empty{padding:44px 24px;text-align:center;font-size:14px;color:var(--label3);line-height:1.55;background:var(--surface);border:0.5px dashed var(--sep);border-radius:var(--r-lg)}
 
-/* MODALS */
+/* MODALS -- CRITICAL: addCalOverlay stacks ABOVE settings */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.32);backdrop-filter:blur(8px) saturate(1.2);-webkit-backdrop-filter:blur(8px) saturate(1.2);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;animation:overlayIn .2s var(--ease)}
 .modal-overlay.open{display:flex}
 @keyframes overlayIn{from{opacity:0}to{opacity:1}}
@@ -359,10 +358,12 @@ html:not([data-theme="light"]) .sb-other{background:rgba(142,142,147,0.18);borde
 .toggle input:checked+.toggle-track{background:var(--green)}.toggle input:checked+.toggle-track::before{transform:translateX(16px)}
 
 /* Cal subs */
-.cal-sub-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--sep3)}
+.cal-sub-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--sep3)}
 .cal-sub-row:last-child{border-bottom:none}
+.cal-sub-info{min-width:0}
 .cal-sub-name{font-size:13px;font-weight:500;color:var(--label);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-sub-url{font-size:10px;font-family:var(--mono);color:var(--label3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-sub-btn{padding:4px 10px!important;font-size:11px!important}
 
 /* CMDK */
 .cmdk-overlay{align-items:flex-start;padding-top:12vh}
@@ -395,17 +396,18 @@ html:not([data-theme="light"]) .sb-other{background:rgba(142,142,147,0.18);borde
 .tpl-item-del{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-xs);color:var(--label4);font-size:13px;transition:all var(--t-fast)}
 .tpl-item-del:hover{color:var(--red);background:var(--red-bg)}
 
-/* AI */
+/* AI -- header uses 2-column grid */
 #aiBubble{position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0a84ff 0%,#5e5ce6 100%);box-shadow:0 6px 20px rgba(10,132,255,0.35),0 2px 6px rgba(0,0,0,0.1),inset 0 0.5px 0 rgba(255,255,255,0.25);z-index:998;display:flex;align-items:center;justify-content:center;transition:transform var(--t) var(--spring),box-shadow var(--t)}
 #aiBubble:hover{transform:scale(1.08);box-shadow:0 8px 28px rgba(10,132,255,0.45),0 4px 10px rgba(0,0,0,0.12)}#aiBubble:active{transform:scale(0.94)}#aiBubble svg{width:24px;height:24px}
 #aiPanel{position:fixed;bottom:90px;right:24px;width:380px;max-width:calc(100vw - 48px);height:min(600px,calc(100vh - 120px));background:var(--surface);border:0.5px solid var(--sep2);border-radius:var(--r-xl);box-shadow:var(--elev-5);z-index:997;display:none;flex-direction:column;overflow:hidden;transform-origin:bottom right}
 #aiPanel.open{display:flex;animation:aiPanelIn .32s var(--spring-soft)}
 @keyframes aiPanelIn{from{opacity:0;transform:translateY(10px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 .ai-hd{display:grid;grid-template-columns:minmax(0,1fr) 26px;align-items:center;gap:10px;padding:14px 16px;border-bottom:0.5px solid var(--sep2);background:var(--surface)}
-.ai-hd-title-wrap{display:flex;align-items:center;gap:10px;min-width:0}
+.ai-hd-title{display:flex;align-items:center;gap:10px;min-width:0}
 .ai-hd-avatar{width:32px;height:32px;border-radius:50%;flex:none;background:linear-gradient(135deg,#0a84ff 0%,#5e5ce6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,0.08)}
 .ai-hd-avatar svg{width:16px;height:16px}
-.ai-hd-title{min-width:0}.ai-hd-name{font-size:14px;font-weight:600;color:var(--label);letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-hd-info{min-width:0}
+.ai-hd-name{font-size:14px;font-weight:600;color:var(--label);letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ai-hd-sub{font-size:11.5px;color:var(--label3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ai-hd-close{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--surface3);color:var(--label2);transition:all var(--t-fast)}
 .ai-hd-close:hover{background:var(--surface4);color:var(--label)}.ai-hd-close svg{width:10px;height:10px}

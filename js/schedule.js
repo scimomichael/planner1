@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-// SCHEDULE — with exam type, date picker, popover, setOffset
+// SCHEDULE -- with exam type, date picker, popover, setOffset
 // ═══════════════════════════════════════════════════════
 const Sched = (() => {
   const SLOT_MIN = 15;
@@ -84,7 +84,7 @@ const Sched = (() => {
   function todayFull() { fullOffset = 0; render('schedFullGrid', 'schedFullLabel', 0); }
   function getOffset() { return offset; }
   function getFullOffset() { return fullOffset; }
-  // FIX: setOffset for week/month jump without busy loop
+  // setOffset for week/month jump without busy loop
   function setOffset(n) { offset = n; }
 
   function assignColumns(blocks) {
@@ -253,9 +253,8 @@ const Sched = (() => {
 
       const extras = [classPill, statusBadge, dueHtml, locChip, descSnip].filter(Boolean).join('');
 
-      // FIX: checkmark uses SVG instead of rotated rectangle
       block.innerHTML =
-        '<div class="sched-block-check' + (b.done ? ' done' : '') + '" data-act="check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="' + (b.css === 'sb-exam' ? '#7a5a1f' : 'var(--surface)') + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+        '<div class="sched-block-check' + (b.done ? ' done' : '') + '" data-act="check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
         recurBadge +
         '<div class="sched-block-name">' + priDot + '<span class="sched-block-name-text">' + Store.esc(b.label) + '</span>' + linkChip + '</div>' +
         (timeDisp ? '<div class="sched-block-time">' + timeDisp + '</div>' : '') +
@@ -264,7 +263,7 @@ const Sched = (() => {
 
       _wireBlockInteraction(block, b, bi, allBlocks, dk, HOURS, SLOT_H, totalH);
 
-      // FEATURE: Hover popover for short blocks
+      // Hover popover for short blocks
       if (isShort) {
         try { _wirePopover(block, b, timeDisp); } catch (e) { console.error('Popover error:', e); }
       }
@@ -277,7 +276,7 @@ const Sched = (() => {
     scroller.appendChild(inner);
     box.appendChild(scroller);
 
-    // FIX: Synchronous scroll restore instead of double rAF
+    // Synchronous scroll restore
     const initKey = gridId + '|' + dk;
     const preservedTop = _preservedScroll[gridId];
     const isTodayDate = (off === 0);
@@ -309,10 +308,19 @@ const Sched = (() => {
     }
   }
 
-  // FEATURE: Hover popover for short blocks
+  // Hover popover for short blocks -- shows to the side
   function _wirePopover(block, b, timeDisp) {
     let popover = null;
     let scrollListener = null;
+
+    function hidePopover() {
+      if (popover) { popover.remove(); popover = null; }
+      if (scrollListener) {
+        const scroller = block.closest('.sched-scroll');
+        if (scroller) scroller.removeEventListener('scroll', scrollListener);
+        scrollListener = null;
+      }
+    }
 
     block.addEventListener('mouseenter', () => {
       try {
@@ -335,22 +343,11 @@ const Sched = (() => {
         popover.style.left = left + 'px';
         popover.style.top = Math.max(4, rect.top) + 'px';
 
-        // Store scroll listener ref for cleanup
         scrollListener = () => { hidePopover(); };
         const scroller = block.closest('.sched-scroll');
         if (scroller) scroller.addEventListener('scroll', scrollListener, { once: true });
       } catch (e) { console.error('Popover show error:', e); }
     });
-
-    function hidePopover() {
-      if (popover) { popover.remove(); popover = null; }
-      // Clean up scroll listener
-      if (scrollListener) {
-        const scroller = block.closest('.sched-scroll');
-        if (scroller) scroller.removeEventListener('scroll', scrollListener);
-        scrollListener = null;
-      }
-    }
 
     block.addEventListener('mouseleave', hidePopover);
   }
@@ -489,13 +486,13 @@ const Sched = (() => {
       const src = Store.schedule[b._recurFrom];
       if (!src || !src[b._recurBaseIdx]) return;
       Store.snapshot();
-      src[b._recurBaseIdx] = { ...src[b._recurBaseIdx], ...changes };
+      src[b._recurBaseIdx] = { ...src[b._recurBaseIdx], ...changes, userEdited: true };
       Store.persist(); _preserveScroll(); renderBoth();
     } else {
       const list = Store.schedule[dk];
       if (!list || !list[bi]) return;
       Store.snapshot();
-      list[bi] = { ...list[bi], ...changes };
+      list[bi] = { ...list[bi], ...changes, userEdited: true };
       Store.persist(); _preserveScroll(); renderBoth();
     }
   }
@@ -576,7 +573,7 @@ const BlockModal = (() => {
     document.getElementById('blockModalTitle').textContent =
       'Add Block \xb7 ' + d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     document.getElementById('bLabel').value = '';
-    // FEATURE: Date picker
+    // Date picker
     document.getElementById('bDate').value = dk;
     document.getElementById('bStart').value = startTime;
     document.getElementById('bEnd').value = endTime;
@@ -595,7 +592,7 @@ const BlockModal = (() => {
     document.getElementById('blockOverlay').classList.add('open');
     setTimeout(() => document.getElementById('bLabel').focus(), 50);
 
-    // Date picker updates title
+    // Date picker updates title when user changes the date
     document.getElementById('bDate').onchange = function() {
       const val = this.value;
       if (val) {

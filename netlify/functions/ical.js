@@ -14,7 +14,11 @@ exports.handler = async (event) => {
     const { url } = JSON.parse(event.body || "{}");
     if (!url) return { statusCode: 400, headers: H, body: JSON.stringify({ error: "url required" }) };
 
-    const res = await fetch(url, { headers: { "User-Agent": "Planner/1.0" } });
+    // Normalize webcal:// to https://
+    let fetchUrl = url.trim();
+    if (fetchUrl.startsWith("webcal://")) fetchUrl = "https://" + fetchUrl.slice(9);
+
+    const res = await fetch(fetchUrl, { headers: { "User-Agent": "Planner/1.0" } });
     if (!res.ok) return { statusCode: 502, headers: H, body: JSON.stringify({ error: `Fetch failed: ${res.status}` }) };
 
     const text = await res.text();
@@ -34,12 +38,14 @@ function parseICS(text) {
     const ev = {};
     const lines = unfold(block);
     for (const line of lines) {
-      const [key, ...rest] = line.split(":");
-      const val = rest.join(":");
-      const baseKey = key.split(";")[0].trim();
+      const colonIdx = line.indexOf(":");
+      if (colonIdx < 0) continue;
+      const keyPart = line.slice(0, colonIdx);
+      const val = line.slice(colonIdx + 1);
+      const baseKey = keyPart.split(";")[0].trim();
       if (baseKey === "SUMMARY") ev.summary = val.trim();
-      if (baseKey === "DESCRIPTION") ev.description = val.replace(/\\n/g, "\n").replace(/\\,/g, ",").trim();
-      if (baseKey === "LOCATION") ev.location = val.replace(/\\,/g, ",").trim();
+      if (baseKey === "DESCRIPTION") ev.description = val.replace(/\\n/g, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").trim();
+      if (baseKey === "LOCATION") ev.location = val.replace(/\\,/g, ",").replace(/\\;/g, ";").trim();
       if (baseKey === "UID") ev.uid = val.trim();
       if (baseKey === "DTSTART") {
         const dt = parseICDate(val.trim());
@@ -56,7 +62,7 @@ function parseICS(text) {
 }
 
 function unfold(text) {
-  return text.replace(/\r\n[ \t]/g, "").replace(/\r/g, "").split("\n").filter(l => l.trim());
+  return text.replace(/\r\n[ \t]/g, "").replace(/\n[ \t]/g, "").replace(/\r/g, "").split("\n").filter(l => l.trim());
 }
 
 function parseICDate(s) {

@@ -23,9 +23,9 @@ async function syncSub(sub){
         // Don't overwrite user-edited blocks
         const idx=existing.findIndex(b=>b.importUid===uid);
         if(idx>=0&&existing[idx].userEdited){skipped++;continue;}
-        // Update in place
+        // Update in place (non-user-edited)
         existing[idx]={...existing[idx],label:ev.summary||'Event',start:ev.start,end:ev.end||ev.start,description:ev.description||existing[idx].description,location:ev.location||existing[idx].location};
-        Store.persist();skipped++;continue;
+        skipped++;continue;
       }
       // Add new
       const type=sub.defaultType||'other';
