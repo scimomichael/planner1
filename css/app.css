@@ -168,6 +168,9 @@ html[data-theme="dark"]{
 .sched-block{position:absolute;border-radius:var(--r-sm);padding:6px 10px 6px 12px;font-size:12.5px;line-height:1.35;color:var(--label);border:0.5px solid transparent;box-shadow:var(--elev-1);cursor:pointer;overflow:hidden;display:flex;flex-direction:column;gap:2px;transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);animation:blockIn .28s var(--spring-soft) both;padding-right:34px}
 @keyframes blockIn{from{opacity:0;transform:translateY(3px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .sched-block:hover{transform:translateY(-1px);box-shadow:var(--elev-3);z-index:3}.sched-block:active{transform:translateY(0)}
+.sched-block-overlay{box-shadow:var(--elev-3),0 0 0 1.5px var(--surface)}
+.sched-block-overlay:hover{box-shadow:var(--elev-3),0 0 0 1.5px var(--surface),0 4px 14px rgba(0,0,0,0.14)}
+.sched-block-overlay-dragging{opacity:0.92;box-shadow:var(--elev-3),0 0 0 2px var(--blue)}
 .sched-block.sched-block-done{opacity:0.48}.sched-block.sched-block-done .sched-block-name{text-decoration:line-through}
 .sched-block-name{font-weight:600;font-size:13px;letter-spacing:-0.01em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px;min-width:0}
 .sched-block-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
@@ -313,6 +316,8 @@ html:not([data-theme="light"]) .sb-other{background:rgba(142,142,147,0.18);borde
 .field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-bottom:14px}.field-row .field-group{margin-bottom:0}
 .field-label{font-size:12px;font-weight:600;color:var(--label2);letter-spacing:-0.005em;margin-bottom:6px;display:flex;align-items:baseline;gap:4px;flex-wrap:wrap}
 .field-hint{font-weight:400;color:var(--label3);font-size:11px}
+.field-inline-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--label);cursor:pointer;user-select:none}
+.field-inline-check input[type="checkbox"]{width:16px;height:16px;margin:0;cursor:pointer;accent-color:var(--blue)}
 .field-hero{font-family:var(--font-display);font-size:22px;font-weight:600;letter-spacing:-0.02em;background:transparent;border:none;outline:none;color:var(--label);padding:8px 0 14px;margin-bottom:8px;border-bottom:0.5px solid var(--sep2);width:100%}
 .field-hero::placeholder{color:var(--label4);font-weight:500}.field-hero:focus{border-bottom-color:var(--blue)}
 .field-input,.field-select,.field-textarea{padding:9px 12px;background:var(--surface2);border:0.5px solid var(--sep3);border-radius:var(--r-sm);font-size:13.5px;color:var(--label);outline:none;transition:all var(--t-fast);width:100%;letter-spacing:-0.005em}

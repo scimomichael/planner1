@@ -90,12 +90,18 @@ const Sched = (() => {
   function setOffset(n) { offset = n; }
 
   function assignColumns(blocks) {
-    const items = blocks.map((b, idx) => {
-      const s = b._dispStart ?? b.start;
-      const e = b._dispEnd ?? b.end;
-      return { idx, startMin: toMins(s), endMin: toMins(e) ?? (toMins(s) + 60) };
-    }).filter(it => it.startMin !== null).sort((a, b) => a.startMin - b.startMin);
+    // Overlay blocks are pulled out of the column-splitting math. They render
+    // full-width, on top of non-overlay blocks, intentionally covering them.
+    // The user opts into this per-block via the overlay:true flag.
     const result = blocks.map(() => ({ col: 0, totalCols: 1 }));
+    const items = blocks
+      .map((b, idx) => {
+        const s = b._dispStart ?? b.start;
+        const e = b._dispEnd ?? b.end;
+        return { idx, isOverlay: !!b.overlay, startMin: toMins(s), endMin: toMins(e) ?? (toMins(s) + 60) };
+      })
+      .filter(it => it.startMin !== null && !it.isOverlay)
+      .sort((a, b) => a.startMin - b.startMin);
     const groups = [];
     items.forEach(it => {
       let placed = false;
@@ -260,11 +266,12 @@ const Sched = (() => {
       const isShort = height < 60;
 
       const block = document.createElement('div');
-      block.className = 'sched-block ' + (b.css || 'sb-other') + (b.done ? ' sched-block-done' : '') + (b.status ? ' status-' + b.status : '');
+      block.className = 'sched-block ' + (b.css || 'sb-other') + (b.done ? ' sched-block-done' : '') + (b.status ? ' status-' + b.status : '') + (b.overlay ? ' sched-block-overlay' : '');
       block.style.top = top + 'px';
       block.style.height = height + 'px';
       block.style.left = 'calc(' + leftPct + '% + 4px)';
       block.style.width = 'calc(' + widthPct + '% - 8px)';
+      if (b.overlay) block.style.zIndex = '5';
       block.dataset.dk = dk;
       block.dataset.bi = bi;
       if (isShort) block.dataset.short = '1';
@@ -457,10 +464,16 @@ const Sched = (() => {
       if (e.target === chk || chk.contains(e.target)) return;
       if (e.button !== 0) return;
       const isResize = e.target === resize;
+      // Option/Alt held at drag-start -> this is an "overlay drag". The
+      // dropped block becomes overlay:true (stacks on top instead of getting
+      // pushed to a side column). A regular drag without Option clears any
+      // existing overlay flag on the block.
+      const overlayDrag = !isResize && (e.altKey || e.metaKey);
       const startY = e.clientY;
       const origTop = parseFloat(block.style.top);
       const origHeight = parseFloat(block.style.height);
       let moved = false;
+      if (overlayDrag) block.classList.add('sched-block-overlay-dragging');
       const onMove = mv => {
         const dy = mv.clientY - startY;
         if (Math.abs(dy) > 3) moved = true;
@@ -475,6 +488,7 @@ const Sched = (() => {
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        block.classList.remove('sched-block-overlay-dragging');
         if (!moved) {
           if (b._recurFrom !== undefined) EditBlock.open(b._recurFrom, b._recurBaseIdx);
           else EditBlock.open(dk, bi);
@@ -496,15 +510,28 @@ const Sched = (() => {
           const oldStartMin = toMins(b._dispStart);
           const oldEndMin = toMins(b._dispEnd) ?? oldStartMin + 60;
           const delta = newStartMin - oldStartMin;
-          _commitChange(b, dk, bi, {
+          const changes = {
             start: _reverseTz(fromMins(newStartMin), b.storedTz),
             end: _reverseTz(fromMins(oldEndMin + delta), b.storedTz),
-          });
+          };
+          // Set overlay on Option-drag; clear on plain drag. This keeps the
+          // default behavior (side-by-side) unless the user explicitly asked
+          // to stack.
+          if (overlayDrag) changes.overlay = true;
+          else if (b.overlay) changes.overlay = false;
+          _commitChange(b, dk, bi, changes);
         }
       };
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
       e.preventDefault();
+    });
+
+    // Right-click (or long-press on touch) toggles overlay without needing to drag.
+    block.addEventListener('contextmenu', e => {
+      if (e.target === chk || chk.contains(e.target)) return;
+      e.preventDefault();
+      _commitChange(b, dk, bi, { overlay: !b.overlay });
     });
   }
 
@@ -726,6 +753,7 @@ const EditBlock = (() => {
     const rem = document.getElementById('ebReminder'); if (rem) rem.value = block.reminder != null ? String(block.reminder) : '';
     const loc = document.getElementById('ebLocation'); if (loc) loc.value = block.location || '';
     const lnk = document.getElementById('ebLink'); if (lnk) lnk.value = block.link || '';
+    const ov = document.getElementById('ebOverlay'); if (ov) ov.checked = !!block.overlay;
     renderTypeGrid('ebTypeGrid', _type, setType);
     if (typeof Classes !== 'undefined') Classes.populateSelect('ebClass', block.classLabel || '');
     buildTzSelect('ebTz');
@@ -753,12 +781,13 @@ const EditBlock = (() => {
     const reminder = document.getElementById('ebReminder')?.value ? Number(document.getElementById('ebReminder').value) : null;
     const location = document.getElementById('ebLocation')?.value.trim() || '';
     const link = document.getElementById('ebLink')?.value.trim() || '';
+    const overlay = !!document.getElementById('ebOverlay')?.checked;
     const css = Sched.getBlockTypes().find(t => t.id === _type)?.css || 'sb-other';
     const orig = Store.schedule[_dk]?.[_bi] || {};
     const block = {
       ...orig, label, type: _type, css, start, end, due, classLabel, description, storedTz,
       recur: recurVal === 'none' ? null : recurVal,
-      priority, status, reminder, location, link, userEdited: true,
+      priority, status, reminder, location, link, overlay, userEdited: true,
     };
     if (newDk !== _dk) {
       Sched.removeBlock(_dk, _bi);
