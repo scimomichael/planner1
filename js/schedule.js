@@ -126,6 +126,9 @@ const Sched = (() => {
   }
 
   function render(gridId, labelId, off) {
+    // Nuke any popovers from a previous render/view before rebuilding the DOM.
+    // Without this, popovers orphan themselves because they live on document.body.
+    _purgeAllPopovers();
     const d = dateFor(off);
     const dk = Store.toStr(d);
     const isToday = (off === 0 && gridId === 'schedGrid');
@@ -177,11 +180,16 @@ const Sched = (() => {
     const axis = document.createElement('div');
     axis.className = 'sched-axis';
     HOURS.forEach((h, i) => {
-      const lbl = document.createElement('div');
-      lbl.className = 'sched-axis-lbl' + (i === 0 ? ' first' : '');
-      lbl.style.top = (i * 4 * SLOT_H) + 'px';
-      lbl.textContent = fmtHQ(h, 0);
-      axis.appendChild(lbl);
+      for (let q = 0; q < 4; q++) {
+        const lbl = document.createElement('div');
+        const isHour = q === 0;
+        // Hour marks keep full styling; quarter marks (:15, :30, :45) get a
+        // lighter variant class so the hour boundary still reads first.
+        lbl.className = 'sched-axis-lbl' + (isHour ? '' : ' quarter') + (i === 0 && q === 0 ? ' first' : '');
+        lbl.style.top = ((i * 4 + q) * SLOT_H) + 'px';
+        lbl.textContent = fmtHQ(h, q);
+        axis.appendChild(lbl);
+      }
     });
 
     const canvas = document.createElement('div');
@@ -376,7 +384,8 @@ const Sched = (() => {
     let scrollListener = null;
 
     function hidePopover() {
-      if (popover) { popover.remove(); popover = null; }
+      if (popover && popover.parentNode) popover.remove();
+      popover = null;
       if (scrollListener) {
         const scroller = block.closest('.sched-scroll');
         if (scroller) scroller.removeEventListener('scroll', scrollListener);
@@ -387,6 +396,10 @@ const Sched = (() => {
     block.addEventListener('mouseenter', () => {
       try {
         if (popover) return;
+        // Defensive: wipe any stale popovers left over from a previous render,
+        // nav change, etc. Popovers live on document.body so they survive block
+        // destruction, which is how they end up orphaned.
+        document.querySelectorAll('.sched-block-popover').forEach(p => p.remove());
         popover = document.createElement('div');
         popover.className = 'sched-block-popover';
         let html = '<div class="sched-block-popover-title">' + Store.esc(b.label) + '</div>';
@@ -417,6 +430,14 @@ const Sched = (() => {
     });
 
     block.addEventListener('mouseleave', hidePopover);
+    // If the block itself is removed from the DOM (rerender), also kill
+    // our popover. MutationObserver watches the block's parent for removal.
+    block._cleanupPopover = hidePopover;
+  }
+
+  // Called before every render to nuke any popovers hanging from a previous state.
+  function _purgeAllPopovers() {
+    document.querySelectorAll('.sched-block-popover').forEach(p => p.remove());
   }
 
   function _recursOn(block, srcDk, tgtDk) {
@@ -590,13 +611,25 @@ const Sched = (() => {
       if (!src || !src[b._recurBaseIdx]) return;
       const sb = src[b._recurBaseIdx];
       sb.doneOverrides = sb.doneOverrides || {};
-      sb.doneOverrides[dk] = !sb.doneOverrides[dk];
+      const wasDone = !!sb.doneOverrides[dk];
+      sb.doneOverrides[dk] = !wasDone;
+      Store.logChange({
+        type: wasDone ? 'block_uncompleted' : 'block_completed',
+        summary: (wasDone ? 'Marked ' : 'Completed ') + `"${sb.label || '?'}" on ${dk} (recurring)`,
+        date: dk, label: sb.label || '',
+      });
       Store.persist(); _preserveScroll(); renderBoth();
     } else {
       const list = Store.schedule[dk];
       if (!list || !list[bi]) return;
       Store.snapshot();
-      list[bi].done = !list[bi].done;
+      const wasDone = !!list[bi].done;
+      list[bi].done = !wasDone;
+      Store.logChange({
+        type: wasDone ? 'block_uncompleted' : 'block_completed',
+        summary: (wasDone ? 'Unmarked ' : 'Completed ') + `"${list[bi].label || '?'}" on ${dk}`,
+        date: dk, label: list[bi].label || '',
+      });
       Store.persist(); _preserveScroll(); renderBoth();
     }
   }
@@ -615,12 +648,39 @@ const Sched = (() => {
     Store.snapshot();
     if (!Store.schedule[dk]) Store.schedule[dk] = [];
     Store.schedule[dk].push(block);
+    Store.logChange({
+      type: 'block_added',
+      summary: `Added "${block.label || '(untitled)'}" on ${dk}` + (block.start ? ` at ${block.start}` : ''),
+      date: dk,
+      block: {
+        label: block.label || '', type: block.type || '', start: block.start || '', end: block.end || '',
+        classLabel: block.classLabel || '', due: block.due || null,
+        dueTime: block.dueTime || '', dueInClass: !!block.dueInClass,
+      },
+    });
     Store.persist(); _preserveScroll(); renderBoth();
   }
   function updateBlock(dk, bi, block) {
     if (!Store.schedule[dk]) return;
+    const before = Store.schedule[dk][bi] || {};
     Store.snapshot();
     Store.schedule[dk][bi] = block;
+    // Compute a compact diff of meaningful fields
+    const tracked = ['label','type','start','end','classLabel','due','dueTime','dueInClass','priority','status','description','location','link','recur','overlay','done'];
+    const diff = {};
+    tracked.forEach(k => {
+      const a = before[k] === undefined ? '' : before[k];
+      const b = block[k]  === undefined ? '' : block[k];
+      if (JSON.stringify(a) !== JSON.stringify(b)) diff[k] = { from: a, to: b };
+    });
+    if (Object.keys(diff).length) {
+      // Build a short human summary of the most important change
+      let summary = `Edited "${block.label || before.label || '?'}" on ${dk}`;
+      if (diff.start || diff.end) summary += ` (time: ${before.start || '?'}\u2013${before.end || '?'} \u2192 ${block.start || '?'}\u2013${block.end || '?'})`;
+      if (diff.label) summary += ` (renamed: "${before.label || ''}" \u2192 "${block.label || ''}")`;
+      if (diff.due) summary += ` (due: ${before.due || 'none'} \u2192 ${block.due || 'none'})`;
+      Store.logChange({ type: 'block_updated', summary, date: dk, label: block.label || '', diff });
+    }
     Store.persist(); _preserveScroll(); renderBoth();
   }
   function removeBlock(dk, bi) {

@@ -46,6 +46,7 @@ const Cal = (() => {
   async function syncSub(sub, opts) {
     const silent = !!(opts && opts.silent);
     if (!sub || !sub.url) return;
+    if (Store.setChangeSource) Store.setChangeSource('calendar');
     try {
       const tz = (typeof Sched !== 'undefined' && Sched.getLocalTz) ? Sched.getLocalTz() : 'America/Chicago';
       const res = await fetch('/api/ical', {
@@ -134,6 +135,16 @@ const Cal = (() => {
       }
 
       Store.updateCalSub(sub.id, { lastSync: Date.now() });
+      // Log the sync outcome to the change log. Only log if anything actually changed;
+      // silent no-op syncs don't need to clutter the log.
+      if (added || updated) {
+        Store.logChange({
+          type: 'calendar_sync',
+          summary: `Calendar "${sub.name}" sync: ${added} added, ${updated} updated` + (filtered ? `, ${filtered} filtered` : ''),
+          subscriptionName: sub.name,
+          added, updated, filtered, skipped,
+        });
+      }
       Store.persist();
       if (typeof App !== 'undefined' && App.refresh) App.refresh();
 
@@ -148,6 +159,8 @@ const Cal = (() => {
       Store.toast(`${sub.name}: ${parts.join(', ')}`);
     } catch (e) {
       if (!silent) Store.toast('Calendar sync error: ' + (e.message || e));
+    } finally {
+      if (Store.setChangeSource) Store.setChangeSource('manual');
     }
   }
 

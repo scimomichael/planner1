@@ -17,6 +17,65 @@ const Store = (() => {
   let meta      = ls.get('meta')      || { lastPull: 0, lastPush: 0 };
   // Deletion tombstones: importUids that user deleted, so re-sync wont resurrect
   let calTombstones = ls.get('calTombstones') || [];
+  // Rolling 2-week audit log of every schedule change. See _logChange below.
+  // Each entry: { ts, type, source, summary, ... detail fields }
+  let changeLog = ls.get('changelog') || [];
+
+  // Thread-local-ish marker: callers set this before mutating Sched/Store
+  // so the log knows who triggered the change. Cleared after each mutation
+  // to a safe default of 'manual'.
+  let _changeSource = 'manual';
+  function setChangeSource(src) { _changeSource = src || 'manual'; }
+
+  const CHANGE_LOG_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;  // 2 weeks
+  const CHANGE_LOG_MAX_ENTRIES = 2000;
+
+  function _logChange(entry) {
+    try {
+      const ts = Date.now();
+      const e = Object.assign({ ts, source: _changeSource }, entry);
+      changeLog.push(e);
+      _pruneChangeLog();
+      ls.set('changelog', changeLog);
+    } catch (err) { console.error('[changelog] log failed', err); }
+  }
+
+  function _pruneChangeLog() {
+    const cutoff = Date.now() - CHANGE_LOG_WINDOW_MS;
+    // Drop anything older than the window. Filter in place so out-of-order
+    // entries (possible after cross-device merge) are also cleaned.
+    const kept = changeLog.filter(e => e && typeof e.ts === 'number' && e.ts >= cutoff);
+    if (kept.length !== changeLog.length) {
+      changeLog.length = 0;
+      kept.forEach(e => changeLog.push(e));
+    }
+    // Also cap by total entries (oldest first)
+    if (changeLog.length > CHANGE_LOG_MAX_ENTRIES) {
+      changeLog.splice(0, changeLog.length - CHANGE_LOG_MAX_ENTRIES);
+    }
+  }
+
+  function getChangeLog(opts) {
+    _pruneChangeLog();
+    const o = opts || {};
+    let out = changeLog;
+    if (o.sinceMs) out = out.filter(e => e.ts >= Date.now() - o.sinceMs);
+    if (o.limit && out.length > o.limit) out = out.slice(-o.limit);
+    return out.slice();
+  }
+
+  function logChange(entry) { _logChange(entry || {}); }
+
+  function clearChangeLog() { changeLog = []; ls.set('changelog', changeLog); }
+
+  // Helper: build a human-readable summary for a schedule block, used in log entries
+  function _blockSummary(b) {
+    if (!b) return '?';
+    const bits = [b.label || '(untitled)'];
+    if (b.start) bits.push(b.start + (b.end ? '\u2013' + b.end : ''));
+    if (b.classLabel) bits.push('[' + b.classLabel + ']');
+    return bits.join(' ');
+  }
 
   function _defaultClasses(legacyColors) {
     const base = [
@@ -97,7 +156,7 @@ const Store = (() => {
       const res = await fetch('/api/sync?action=push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, calSubs, calTombstones, meta }),
+        body: JSON.stringify({ schedule, tasks, focus: focusMap, templates, classClr, classes, calSubs, calTombstones, changeLog, meta }),
       });
       if (!res.ok) {
         let msg = 'Sync failed';
@@ -138,6 +197,17 @@ const Store = (() => {
         if (Array.isArray(r.classes) && r.classes.length) { classes = r.classes; ls.set('classes', classes); }
         if (Array.isArray(r.calSubs)) { calSubs = r.calSubs; ls.set('calSubs', calSubs); }
         if (Array.isArray(r.calTombstones)) { calTombstones = r.calTombstones; ls.set('calTombstones', calTombstones); }
+        if (Array.isArray(r.changeLog)) {
+          // Merge by ts (timestamp) to preserve entries from either device.
+          const seen = new Set(changeLog.map(e => e.ts + '|' + (e.type || '')));
+          r.changeLog.forEach(e => {
+            const key = e.ts + '|' + (e.type || '');
+            if (!seen.has(key)) { changeLog.push(e); seen.add(key); }
+          });
+          changeLog.sort((a, b) => a.ts - b.ts);
+          _pruneChangeLog();
+          ls.set('changelog', changeLog);
+        }
         meta.lastPull = rTime; ls.set('meta', meta);
         _setSync('ok', 'Synced');
         return true;
@@ -264,6 +334,7 @@ const Store = (() => {
     const maxOrder = classes.reduce((m, c) => Math.max(m, c.order || 0), -1);
     const cls = { id: 'cls_' + Date.now() + Math.random().toString(36).slice(2), name, color: color || '#8e8e93', order: maxOrder + 1 };
     classes.push(cls);
+    _logChange({ type: 'class_added', summary: `Added class "${name}"`, name, color: cls.color });
     persist();
     return cls;
   }
@@ -271,6 +342,7 @@ const Store = (() => {
     const c = classes.find(x => x.id === id);
     if (!c) return false;
     const oldName = c.name;
+    const oldColor = c.color;
     if (patch.name !== undefined) c.name = patch.name.trim();
     if (patch.color !== undefined) c.color = patch.color;
     if (patch.name !== undefined && patch.name !== oldName) {
@@ -278,6 +350,10 @@ const Store = (() => {
       Object.values(schedule).forEach(list => {
         list.forEach(b => { if (b.classLabel === oldName) b.classLabel = c.name; });
       });
+      _logChange({ type: 'class_renamed', summary: `Renamed class "${oldName}" \u2192 "${c.name}"`, oldName, newName: c.name });
+    }
+    if (patch.color !== undefined && patch.color !== oldColor) {
+      _logChange({ type: 'class_recolored', summary: `Recolored class "${c.name}" to ${patch.color}`, name: c.name, oldColor, newColor: patch.color });
     }
     persist();
     return true;
@@ -291,6 +367,14 @@ const Store = (() => {
     tasks.forEach(t => { if (t.classLabel === oldName) t.classLabel = newName; });
     Object.values(schedule).forEach(list => {
       list.forEach(b => { if (b.classLabel === oldName) b.classLabel = newName; });
+    });
+    _logChange({
+      type: 'class_deleted',
+      summary: reassignTo
+        ? `Deleted class "${oldName}" and reassigned its blocks to "${reassignTo}"`
+        : `Deleted class "${oldName}" and unassigned its blocks`,
+      name: oldName,
+      reassignedTo: reassignTo || null,
     });
     persist();
     return true;
@@ -353,6 +437,19 @@ const Store = (() => {
   function removeBlock(dk, bi) {
     if (!schedule[dk]) return;
     const b = schedule[dk][bi];
+    if (b) {
+      _logChange({
+        type: 'block_deleted',
+        summary: `Deleted block "${(b.label||'?')}" on ${dk}`,
+        date: dk,
+        snapshot: {
+          label: b.label, type: b.type, start: b.start, end: b.end,
+          classLabel: b.classLabel || '', due: b.due || null,
+          dueTime: b.dueTime || '', dueInClass: !!b.dueInClass,
+          importUid: b.importUid || null,
+        },
+      });
+    }
     if (b && b.importUid) recordCalSubDeletion(b.importUid);
     schedule[dk].splice(bi, 1);
     persist();
@@ -363,6 +460,7 @@ const Store = (() => {
     set schedule(v) { schedule = v; },
     persist, snapshot, undo, redo,
     pull, showSyncDiag,
+    setChangeSource, getChangeLog, clearChangeLog, logChange,
     today, toStr, todayStr, daysUntil, fmtDate, weekDays, monthDays,
     duePill, clsPill, esc, toast,
     clearSchedule, clearTemplates,
