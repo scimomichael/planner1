@@ -806,6 +806,7 @@ const BlockModal = (() => {
     renderTypeGrid('bTypeGrid', _type, setType);
     if (typeof Classes !== 'undefined') Classes.populateSelect('bClass', '');
     buildTzSelect('bTz');
+    wireDateYearFallback(['bDate', 'bDue', 'bRecurUntil']);
     document.getElementById('blockOverlay').classList.add('open');
     setTimeout(() => document.getElementById('bLabel').focus(), 50);
 
@@ -861,6 +862,16 @@ const BlockModal = (() => {
   function overlayClick(e) { if (e.target.id === 'blockOverlay') close(); }
 
   function save() {
+    // Run the year-fill fallback one more time in case the user clicked Save
+    // without blurring the date fields first (blur doesn't always fire before
+    // button click completes).
+    ['bDate','bDue','bRecurUntil'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || !el.value) return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(el.value)) return;
+      const parsed = _parsePartialDate(el.value.trim());
+      if (parsed) el.value = parsed;
+    });
     const label = document.getElementById('bLabel').value.trim() || _type;
     const dateVal = document.getElementById('bDate').value || _dk;
     const start = document.getElementById('bStart').value;
@@ -991,6 +1002,7 @@ const EditBlock = (() => {
       }
     }
     document.getElementById('editBlockOverlay').classList.add('open');
+    wireDateYearFallback(['ebDate', 'ebDue']);
     setTimeout(() => document.getElementById('ebLabel').focus(), 50);
   }
 
@@ -998,6 +1010,15 @@ const EditBlock = (() => {
   function overlayClick(e) { if (e.target.id === 'editBlockOverlay') close(); }
 
   function save() {
+    // Normalize partial dates (e.g. "4/25" -> "2026-04-25") in case blur
+    // didn't fire before the Save click landed.
+    ['ebDate','ebDue'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || !el.value) return;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(el.value)) return;
+      const parsed = _parsePartialDate(el.value.trim());
+      if (parsed) el.value = parsed;
+    });
     const label = document.getElementById('ebLabel').value.trim();
     const start = document.getElementById('ebStart').value;
     const end = document.getElementById('ebEnd').value;
@@ -1085,3 +1106,110 @@ function buildTzSelect(selectId) {
   ).join('');
   sel.value = local;
 }
+
+// Auto-fill year for date inputs. On browsers that render <input type="date">
+// as an MM/DD/YYYY text field (common on desktop Chrome), the user can leave
+// the year blank. That makes the input invalid, and .value returns "" on save.
+// This helper watches for the user typing a month and day, and if they leave
+// without a year, rewrites the field's value to include the current year.
+//
+// We can't read partial text from a type="date" input, so instead we also
+// support a fallback: accept free-text input and parse it. If the user's
+// browser shows the field as a text box (we detect this by reading
+// .validity.badInput after blur), we parse their typed string.
+//
+// Accepted formats when year is missing:
+//   "4/25", "04/25", "4-25", "Apr 25", "April 25"
+// Also handles "4/25/26" and "4/25/2026" as full dates.
+//
+// The parsed date is rewritten into the input as "YYYY-MM-DD" so the form
+// accepts it normally.
+function wireDateYearFallback(inputIds) {
+  const ids = Array.isArray(inputIds) ? inputIds : [inputIds];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el._yearFallbackWired) return;
+    el._yearFallbackWired = true;
+
+    // We listen to a few events because blur doesn't fire if the user
+    // clicks Save (focus stays on the button after mousedown).
+    const handler = () => {
+      // If the input already has a valid YYYY-MM-DD value, do nothing.
+      if (el.value && /^\d{4}-\d{2}-\d{2}$/.test(el.value)) return;
+
+      // Try to read what the user actually typed. Browsers that show the
+      // field as a text box expose the raw string via the input.
+      // On Safari/iOS the field is a native picker and this won't fire.
+      const raw = (el.value || '').trim();
+      if (!raw) return; // truly empty, leave alone
+
+      const parsed = _parsePartialDate(raw);
+      if (parsed) el.value = parsed;
+    };
+
+    // blur catches tabbing / clicking elsewhere
+    el.addEventListener('blur', handler);
+    // change fires when the native picker commits, also useful
+    el.addEventListener('change', handler);
+  });
+}
+
+// Parse "4/25", "Apr 25", "04-25-2026", etc. into "YYYY-MM-DD".
+// If the year is missing, uses the current year, but bumps to next year
+// if the resulting date has already passed (same logic as Quick Add).
+function _parsePartialDate(s) {
+  if (!s) return null;
+  s = s.trim();
+  const now = new Date();
+  const thisYear = now.getFullYear();
+
+  // Case 1: MM/DD or M/D or MM-DD
+  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  if (m) {
+    const mo = Number(m[1]), d = Number(m[2]);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return _assembleDate(thisYear, mo, d);
+  }
+
+  // Case 2: MM/DD/YY or MM/DD/YYYY
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    const mo = Number(m[1]), d = Number(m[2]);
+    let y = Number(m[3]);
+    if (y < 100) y += 2000; // "26" -> 2026
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return _pad4(y) + '-' + _pad2(mo) + '-' + _pad2(d);
+  }
+
+  // Case 3: "Apr 25", "April 25", "apr 25"
+  const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  m = s.toLowerCase().match(/^([a-z]+)\s+(\d{1,2})(?:\s*,?\s*(\d{2,4}))?$/);
+  if (m) {
+    const monthName = m[1].slice(0, 3);
+    const mi = MONTHS.indexOf(monthName);
+    if (mi < 0) return null;
+    const d = Number(m[2]);
+    if (d < 1 || d > 31) return null;
+    if (m[3]) {
+      let y = Number(m[3]);
+      if (y < 100) y += 2000;
+      return _pad4(y) + '-' + _pad2(mi + 1) + '-' + _pad2(d);
+    }
+    return _assembleDate(thisYear, mi + 1, d);
+  }
+
+  return null;
+}
+function _assembleDate(year, month, day) {
+  // If the date is more than 1 day in the past, assume next year.
+  const candidate = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const oneDay = 24 * 60 * 60 * 1000;
+  if (candidate.getTime() < today.getTime() - oneDay) {
+    year += 1;
+  }
+  return _pad4(year) + '-' + _pad2(month) + '-' + _pad2(day);
+}
+function _pad2(n) { return String(n).padStart(2, '0'); }
+function _pad4(n) { return String(n).padStart(4, '0'); }

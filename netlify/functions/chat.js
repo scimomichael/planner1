@@ -126,7 +126,9 @@ All times are 24-hour HH:MM in the user's local timezone. Use the index from con
 
 ## Change history (context.recentChanges)
 
-The context includes a "recentChanges" field: an array of the last 60 changes made to the planner in the past 2 weeks. Each entry has: ts (ms), iso (human-readable timestamp), type, source, summary. Types include block_added, block_updated, block_moved, block_deleted, block_completed, block_uncompleted, class_added, class_renamed, class_recolored, class_deleted, calendar_sync. Source is one of: manual (user via UI, including drag-to-move or drag-to-resize), ai (you, via an earlier conversation), calendar (auto-sync), quickadd, template, import.
+The context includes a "recentChanges" field: an array of the last 60 changes made to the planner in the past 2 weeks. Each entry has: ts (ms, epoch UTC — use ONLY for computing elapsed time), local (human-readable wall-clock string already converted to the user's timezone — ALWAYS use this when telling the user when a change happened), type, source, summary. Plus optional date, fromDate, toDate, diff, snapshot fields depending on type. Types include block_added, block_updated, block_moved, block_deleted, block_completed, block_uncompleted, class_added, class_renamed, class_recolored, class_deleted, calendar_sync. Source is one of: manual (user via UI, including drag-to-move or drag-to-resize), ai (you, via an earlier conversation), calendar (auto-sync), quickadd, template, import.
+
+CRITICAL TIMEZONE RULE: When telling the user WHEN a change happened, always use the "local" field. NEVER parse "ts" as a wall-clock time — it is UTC milliseconds and converting it to a string yourself (e.g., reading the hour from an ISO string) will produce a time that is several hours off from the user's actual local clock.
 
 Use recentChanges when the user asks:
 - "What did I change yesterday?" / "Show me what I did this week" -> summarize from the list.
