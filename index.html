@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="root">
+  <aside id="sidebar">
+    <div class="sb-top">
+      <div class="sb-brand">
+        <div class="sb-logo">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="3.5" width="16" height="14" rx="3" fill="white" fill-opacity=".9"/><path d="M6 1v3M14 1v3M2 8h16" stroke="white" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="12" r="1" fill="white"/><circle cx="10" cy="12" r="1" fill="white"/><circle cx="13" cy="12" r="1" fill="white"/></svg>
+        </div>
+        <span class="sb-name">Planner</span>
+      </div>
+      <nav class="sb-nav">
+        <button class="nav-btn active" data-view="today" onclick="App.nav('today')"><div class="nav-ico" style="background:#007aff;color:#fff"><svg viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 5h12M4 1v2M10 1v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></div><span>Today</span></button>
+        <button class="nav-btn" data-view="schedule" onclick="App.nav('schedule')"><div class="nav-ico" style="background:#5856d6;color:#fff"><svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 4v3.2l2 1.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></div><span>Schedule</span></button>
+        <button class="nav-btn" data-view="week" onclick="App.nav('week')"><div class="nav-ico" style="background:#34c759;color:#fff"><svg viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 5h12M4 1v2M10 1v2M3 8h1.5M3 10h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></div><span>Week</span></button>
+        <button class="nav-btn" data-view="month" onclick="App.nav('month')"><div class="nav-ico" style="background:#ff2d55;color:#fff"><svg viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 5h12M5 5v8M9 5v8M1 8h12M1 11h12" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div><span>Month</span></button>
+        <button class="nav-btn" data-view="stats" onclick="App.nav('stats')"><div class="nav-ico" style="background:#af52de;color:#fff"><svg viewBox="0 0 14 14" fill="none"><path d="M2 12V6M6 12V3M10 12V8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><span>Stats</span></button>
+      </nav>
+    </div>
+    <div class="sb-foot">
+      <div class="sync-row" onclick="Store.showSyncDiag()" title="Click for sync diagnostics"><span class="sync-dot ok" id="syncDot"></span><span id="syncLabel">Ready</span></div>
+      <div class="sb-actions">
+        <button class="sb-btn" onclick="CmdK.open()"><svg viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span class="sb-btn-label">Search</span><span class="kbd">&#8984;K</span></button>
+        <button class="sb-btn" onclick="Settings.open()" style="grid-template-columns:14px 1fr"><svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.2" stroke="currentColor" stroke-width="1.3"/><path d="M7 .8v1.5M7 11.7v1.5M.8 7h1.5M11.7 7h1.5M2.5 2.5l1.1 1.1M10.4 10.4l1.1 1.1M11.5 2.5L10.4 3.6M3.6 10.4l-1.1 1.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span class="sb-btn-label">Settings</span></button>
+      </div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <!-- TODAY -->
+    <div class="view active" id="view-today">
+      <div class="view-hd"><div><h1 id="todayTitle">Today</h1><p class="view-sub" id="todayDate"></p></div><div class="view-hd-right"><button class="btn-secondary" onclick="QuickAdd.open()"><svg viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Quick Add</button><button class="btn-add" onclick="BlockModal.open(Store.todayStr(),12,0)"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> New Block</button></div></div>
+      <div class="focus-bar" id="focusBar"><div class="focus-icon"><svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.5" fill="rgba(255,255,255,.8)"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1 1M10.2 10.2l1 1M2.8 11.2l1-1M10.2 3.8l1-1" stroke="rgba(255,255,255,.5)" stroke-width="1.2" stroke-linecap="round"/></svg></div><input id="focusInput" class="focus-input" placeholder="What's the one thing you must get done today?" oninput="Store.saveFocus()"></div>
+      <div class="today-grid today-grid-single"><div class="today-schedule-col"><div class="panel-hd"><h2>Schedule</h2><div class="day-nav"><button class="day-nav-btn" onclick="Sched.shift(-1)" title="Previous day"><svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="day-nav-label" id="schedLabel"></span><button class="day-nav-btn" onclick="Sched.shift(1)" title="Next day"><svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="day-nav-btn day-nav-today" onclick="Sched.today()" title="Jump to today">Today</button></div></div><div class="sched-box" id="schedGrid"></div></div></div>
+    </div>
+
+    <!-- SCHEDULE (full) -->
+    <div class="view" id="view-schedule">
+      <div class="view-hd"><div><h1>Schedule</h1><p class="view-sub" id="schedFullLabel"></p></div><div class="view-hd-right"><button class="btn-icon-pill" onclick="Sched.shiftFull(-1)"><svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="btn-icon-pill" onclick="Sched.todayFull()" title="Today" style="width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button><button class="btn-icon-pill" onclick="Sched.shiftFull(1)"><svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="btn-secondary" onclick="Templates.open()">Templates</button><button class="btn-add" onclick="BlockModal.open(Store.todayStr(),12,0)"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> New Block</button></div></div>
+      <div class="sched-box sched-box-full" id="schedFullGrid"></div>
+    </div>
+
+    <!-- WEEK -->
+    <div class="view" id="view-week">
+      <div class="view-hd"><div><h1>Week</h1><p class="view-sub" id="weekLabel"></p></div><div class="view-hd-right"><button class="btn-icon-pill" onclick="Week.shift(-1)"><svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="btn-icon-pill" onclick="Week.today()" title="This week" style="width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button><button class="btn-icon-pill" onclick="Week.shift(1)"><svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="btn-add" onclick="BlockModal.open(Store.todayStr(),12,0)"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> New Block</button></div></div>
+      <div id="weekGrid" class="week-grid"></div>
+    </div>
+
+    <!-- MONTH -->
+    <div class="view" id="view-month">
+      <div class="view-hd"><div><h1>Month</h1><p class="view-sub" id="monthLabel"></p></div><div class="view-hd-right"><button class="btn-icon-pill" onclick="Month.shift(-1)"><svg viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="btn-icon-pill" onclick="Month.today()" title="This month" style="width:auto;padding:0 10px;font-size:11px;font-weight:600">Today</button><button class="btn-icon-pill" onclick="Month.shift(1)"><svg viewBox="0 0 10 16" fill="none"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="btn-add" onclick="BlockModal.open(Store.todayStr(),12,0)"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> New Block</button></div></div>
+      <div id="monthGrid" class="month-grid"></div>
+    </div>
+
+    <!-- STATS -->
+    <div class="view" id="view-stats"><div class="view-hd"><div><h1>Stats</h1><p class="view-sub">Your week at a glance</p></div></div><div id="statsContent"></div></div>
+  </main>
+</div>
+
+<!-- BLOCK ADD MODAL -->
+<div class="modal-overlay" id="blockOverlay" onclick="BlockModal.overlayClick(event)">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><span id="blockModalTitle">Add Block</span><button class="modal-close" onclick="BlockModal.close()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-bd">
+      <input class="field-hero" id="bLabel" placeholder="What are you doing?" autocomplete="off">
+      <div class="field-group"><div class="field-label">Date</div><input class="field-input" type="date" id="bDate"></div>
+      <div class="field-row"><div class="field-group"><div class="field-label">Start</div><input class="field-input" type="time" id="bStart"></div><div class="field-group"><div class="field-label">End</div><input class="field-input" type="time" id="bEnd"></div></div>
+      <div class="field-group"><div class="field-label">Type</div><div class="block-type-grid" id="bTypeGrid"></div></div>
+      <div class="field-row"><div class="field-group"><div class="field-label">Class <span class="field-hint">(optional)</span></div><select class="field-select" id="bClass" data-class-select></select></div><div class="field-group"><div class="field-label">Due Date <span class="field-hint">(for assignments)</span></div><input class="field-input" type="date" id="bDue"></div></div>
+      <div class="field-group" id="bDueTimeGroup" style="display:none"><div class="field-label">Due Time <span class="field-hint">(optional)</span></div><div class="due-time-row"><input class="field-input due-time-input" type="time" id="bDueTime"><button type="button" class="due-preset" data-preset="in-class" onclick="BlockModal.dueTimePreset('in-class')">In-Class</button><button type="button" class="due-preset" data-preset="11:59pm" onclick="BlockModal.dueTimePreset('11:59pm')">11:59 PM</button><button type="button" class="due-preset due-preset-clear" onclick="BlockModal.dueTimePreset('clear')" title="Clear time">\u2715</button></div></div>
+      <div class="field-group"><div class="field-label">Recurring</div><select class="field-select" id="bRecur"><option value="none">Just this one time</option><option value="daily">Every day</option><option value="weekdays">Weekdays only (Mon-Fri)</option><option value="weekly">Weekly (same day each week)</option></select></div>
+      <div class="field-group" id="bRecurEndGroup" style="display:none"><div class="field-label">Recur until</div><input class="field-input" type="date" id="bRecurUntil"></div>
+      <div class="field-group"><div class="field-label">Description <span class="field-hint">(optional)</span></div><textarea class="field-input field-textarea" id="bDescription" rows="2" placeholder="Details, notes, assignment info..."></textarea></div>
+      <details class="more-options"><summary>More options</summary>
+        <div class="field-row"><div class="field-group"><div class="field-label">Priority</div><select class="field-select" id="bPriority"><option value="">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div><div class="field-group"><div class="field-label">Reminder</div><select class="field-select" id="bReminder"><option value="">None</option><option value="5">5 min before</option><option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></div></div>
+        <div class="field-group"><div class="field-label">Location <span class="field-hint">(optional)</span></div><input class="field-input" id="bLocation" placeholder="Room 205, Zoom, Library, etc."></div>
+        <div class="field-group"><div class="field-label">Link <span class="field-hint">(optional)</span></div><input class="field-input" id="bLink" type="url" placeholder="https://..."></div>
+        <div class="field-group"><div class="field-label">Timezone</div><select class="field-select" id="bTz"></select></div>
+      </details>
+    </div>
+    <div class="modal-ft"><button class="btn-secondary" onclick="Templates.saveCurrentBlock()">Save as Template</button><div class="modal-ft-spacer"></div><button class="btn-cancel" onclick="BlockModal.close()">Cancel</button><button class="btn-save" onclick="BlockModal.save()">Add Block</button></div>
+  </div>
+</div>
+
+<!-- BLOCK EDIT MODAL -->
+<div class="modal-overlay" id="editBlockOverlay" onclick="EditBlock.overlayClick(event)">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><span>Edit Block</span><button class="modal-close" onclick="EditBlock.close()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-bd">
+      <input class="field-hero" id="ebLabel" placeholder="Label" autocomplete="off">
+      <div class="field-row"><div class="field-group"><div class="field-label">Start</div><input class="field-input" type="time" id="ebStart"></div><div class="field-group"><div class="field-label">End</div><input class="field-input" type="time" id="ebEnd"></div></div>
+      <div class="field-group"><div class="field-label">Move to Date</div><input class="field-input" type="date" id="ebDate"></div>
+      <div class="field-group"><div class="field-label">Type</div><div class="block-type-grid" id="ebTypeGrid"></div></div>
+      <div class="field-row"><div class="field-group"><div class="field-label">Class <span class="field-hint">(optional)</span></div><select class="field-select" id="ebClass" data-class-select></select></div><div class="field-group"><div class="field-label">Due Date <span class="field-hint">(for assignments)</span></div><input class="field-input" type="date" id="ebDue"></div></div>
+      <div class="field-group" id="ebDueTimeGroup" style="display:none"><div class="field-label">Due Time <span class="field-hint">(optional)</span></div><div class="due-time-row"><input class="field-input due-time-input" type="time" id="ebDueTime"><button type="button" class="due-preset" data-preset="in-class" onclick="EditBlock.dueTimePreset('in-class')">In-Class</button><button type="button" class="due-preset" data-preset="11:59pm" onclick="EditBlock.dueTimePreset('11:59pm')">11:59 PM</button><button type="button" class="due-preset due-preset-clear" onclick="EditBlock.dueTimePreset('clear')" title="Clear time">\u2715</button></div></div>
+      <div class="field-group"><div class="field-label">Description <span class="field-hint">(optional)</span></div><textarea class="field-input field-textarea" id="ebDescription" rows="2" placeholder="Details, notes, assignment info..."></textarea></div>
+      <details class="more-options"><summary>More options</summary>
+        <div class="field-row"><div class="field-group"><div class="field-label">Priority</div><select class="field-select" id="ebPriority"><option value="">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div><div class="field-group"><div class="field-label">Status</div><select class="field-select" id="ebStatus"><option value="scheduled">Scheduled</option><option value="in-progress">In progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div>
+        <div class="field-row"><div class="field-group"><div class="field-label">Reminder</div><select class="field-select" id="ebReminder"><option value="">None</option><option value="5">5 min before</option><option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></div><div class="field-group"><div class="field-label">Recurring</div><select class="field-select" id="ebRecur"><option value="none">Just this one time</option><option value="daily">Every day</option><option value="weekdays">Weekdays only</option><option value="weekly">Weekly</option></select></div></div>
+        <div class="field-group"><div class="field-label">Location <span class="field-hint">(optional)</span></div><input class="field-input" id="ebLocation" placeholder="Room 205, Zoom, Library, etc."></div>
+        <div class="field-group"><div class="field-label">Link <span class="field-hint">(optional)</span></div><input class="field-input" id="ebLink" type="url" placeholder="https://..."></div>
+        <div class="field-group"><div class="field-label">Timezone</div><select class="field-select" id="ebTz"></select></div>
+        <div class="field-group"><label class="field-inline-check"><input type="checkbox" id="ebOverlay"> <span>Stack on top of other events (don't split into columns)</span></label><div class="field-hint" style="text-transform:none;letter-spacing:0;font-size:11px;margin-top:4px">Tip: hold Option while dragging a block to stack it on top without opening this menu.</div></div>
+      </details>
+    </div>
+    <div class="modal-ft"><button class="btn-danger" onclick="EditBlock.del()">Delete</button><div class="modal-ft-spacer"></div><button class="btn-cancel" onclick="EditBlock.close()">Cancel</button><button class="btn-save" onclick="EditBlock.save()">Save</button></div>
+  </div>
+</div>
+
+<!-- TEMPLATES MODAL -->
+<div class="modal-overlay" id="templatesOverlay" onclick="Templates.overlayClick(event)"><div class="modal modal-sm"><div class="modal-hd"><span>Block Templates</span><button class="modal-close" onclick="Templates.close()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div><div class="modal-bd"><div class="field-hint" style="margin-bottom:8px;text-transform:none;letter-spacing:0;font-size:12px">Click to insert a template at the current cursor time, or in the "Add Block" modal to save the current entry as a template.</div><div id="templatesList"></div></div><div class="modal-ft"><button class="btn-save" onclick="Templates.close()">Done</button></div></div></div>
+
+<!-- QUICK ADD -->
+<div class="modal-overlay" id="quickAddOverlay" onclick="QuickAdd.overlayClick(event)"><div class="modal modal-sm"><div class="modal-hd"><span>Quick Add</span><button class="modal-close" onclick="QuickAdd.close()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div><div class="modal-bd"><div class="field-hint" style="text-transform:none;letter-spacing:0;font-size:12px;margin-bottom:6px">Type naturally - "Study APUSH tomorrow 3-5pm" or "Math quiz Friday"</div><input class="field-hero" id="qaInput" placeholder="e.g. AP Bio study tomorrow 4-6pm" autocomplete="off"><div id="qaPreview" class="qa-preview"></div></div><div class="modal-ft"><button class="btn-cancel" onclick="QuickAdd.close()">Cancel</button><button class="btn-save" onclick="QuickAdd.commit()">Add</button></div></div></div>
+
+<!-- COMMAND PALETTE -->
+<div class="modal-overlay cmdk-overlay" id="cmdkOverlay" onclick="CmdK.overlayClick(event)"><div class="cmdk-modal"><div class="cmdk-search"><svg viewBox="0 0 14 14" fill="none" class="cmdk-icon"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><input id="cmdkInput" placeholder="Search tasks, blocks, run commands..." autocomplete="off" oninput="CmdK.handleInput()" onkeydown="CmdK.handleKey(event)"></div><div class="cmdk-results" id="cmdkResults"></div></div></div>
+
+<!-- SETTINGS -->
+<div class="modal-overlay" id="settingsOverlay" onclick="Settings.overlayClick(event)">
+  <div class="modal">
+    <div class="modal-hd"><span>Settings</span><button class="modal-close" onclick="Settings.close()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-bd settings-body">
+      <div class="settings-section"><div class="settings-section-title">Appearance</div><div class="settings-list">
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Theme</div><div class="settings-row-sub">Light, dark, or follow system</div></div><div class="settings-row-ctrl"><select class="field-select" id="sTheme" onchange="Settings.save()"><option value="auto">Auto (System)</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show "Now" Line</div><div class="settings-row-sub">Red line marking the current time</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sNowLine" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Auto-scroll to Now</div><div class="settings-row-sub">Scroll to current time when opening Today</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sAutoScroll" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show Focus Bar</div><div class="settings-row-sub">Daily focus input at the top of Today</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sFocusBar" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show Due Date on Blocks</div><div class="settings-row-sub">Display block's due date on the schedule</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sBlockDue" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show AI Assistant</div><div class="settings-row-sub">Claude chat bubble in bottom-right corner</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sAIEnabled" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-title">Block Display</div><div class="settings-list">
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show Description Snippet</div><div class="settings-row-sub">Preview of the description inside each block</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sBlockDesc" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show Priority Indicator</div><div class="settings-row-sub">Color dot next to labels with a priority</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sBlockPriority" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show Location</div><div class="settings-row-sub">Location chip inside blocks that have one</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sBlockLocation" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Show Link Icon</div><div class="settings-row-sub">Clickable link icon for blocks with URLs</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sBlockLink" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Warn on Conflicts</div><div class="settings-row-sub">Prompt before saving an overlapping block</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sConflictWarn" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-title">Schedule</div><div class="settings-list">
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Start Time</div><div class="settings-row-sub">Earliest hour shown on schedule</div></div><div class="settings-row-ctrl"><select class="field-select" id="sStartHour" onchange="Settings.save()"><option value="5">5:00 AM</option><option value="6">6:00 AM</option><option value="7">7:00 AM</option><option value="8">8:00 AM</option></select></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Slot Height</div><div class="settings-row-sub">Height of each 15-minute slot</div></div><div class="settings-row-ctrl"><select class="field-select" id="sSlotH" onchange="Settings.save()"><option value="24">Compact</option><option value="28" selected>Default</option><option value="34">Comfortable</option><option value="42">Spacious</option></select></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Week starts on</div><div class="settings-row-sub">First day shown in Week & Month views</div></div><div class="settings-row-ctrl"><select class="field-select" id="sWeekStart" onchange="Settings.save()"><option value="0">Sunday</option><option value="1">Monday</option></select></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Browser Notifications</div><div class="settings-row-sub">Alert 5 min before blocks start</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sNotify" onchange="Settings.toggleNotify()"><span class="toggle-track"></span></label></div></div>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-title">Classes</div><div class="settings-list">
+        <div class="settings-row clickable" onclick="Classes.open()"><div class="settings-row-main"><div class="settings-row-title">Manage classes</div><div class="settings-row-sub">Add, rename, reorder, recolor, or delete classes</div></div><div class="settings-row-ctrl"><svg viewBox="0 0 10 16" fill="none" width="10" height="14" style="color:var(--label3)"><path d="M2 2l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-title">Calendar Subscriptions</div><div class="settings-list"><div id="calSubsList"></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Add Calendar</div><div class="settings-row-sub">Import events from Google Calendar, iCal, or any .ics feed</div></div><div class="settings-row-ctrl"><button class="btn-cancel" onclick="Settings.showAddCalSub()">Add</button></div></div>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-title">Data & Sync</div><div class="settings-list">
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Cross-Device Sync</div><div class="settings-row-sub">Sync your data across all browsers</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sCrossSync" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Timezone</div><div class="settings-row-sub" id="tzDisplay">Detecting...</div></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Force Sync Now</div><div class="settings-row-sub">Pull the latest data from the server</div></div><div class="settings-row-ctrl"><button class="btn-cancel" onclick="Settings.forcePull()">Pull</button></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Export Schedule (iCal)</div><div class="settings-row-sub">Download a .ics file for calendar apps</div></div><div class="settings-row-ctrl"><button class="btn-cancel" onclick="Settings.exportICal()">Export</button></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Print Today</div><div class="settings-row-sub">Print-friendly view of today</div></div><div class="settings-row-ctrl"><button class="btn-cancel" onclick="window.print()">Print</button></div></div>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-title">Danger Zone</div><div class="settings-list">
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Clear All Schedule Data</div><div class="settings-row-sub">Remove all blocks from all dates</div></div><div class="settings-row-ctrl"><button class="btn-danger-sm" onclick="Settings.clearSchedule()">Clear</button></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Clear Templates</div><div class="settings-row-sub">Remove all saved block templates</div></div><div class="settings-row-ctrl"><button class="btn-danger-sm" onclick="Settings.clearTemplates()">Clear</button></div></div>
+      </div></div>
+    </div>
+    <div class="modal-ft"><button class="btn-save" onclick="Settings.close()">Done</button></div>
+  </div>
+</div>
+
+<!-- MANAGE CLASSES MODAL -->
+<div class="modal-overlay" id="classesOverlay" onclick="Classes.overlayClick(event)"><div class="modal modal-sm"><div class="modal-hd"><span>Manage Classes</span><button class="modal-close" onclick="Classes.close()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div><div class="modal-bd"><p class="cls-modal-hint">Drag to reorder. Click a name to rename. Click the color swatch to change color.</p><div id="classesList" class="cls-list"></div><div class="cls-add-row"><input type="text" id="newClassName" class="field-input" placeholder="New class name (e.g. Physics Honors)" onkeydown="if(event.key==='Enter'){event.preventDefault();Classes.addFromForm();}"><button class="btn-add btn-add-sm" onclick="Classes.addFromForm()"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Add</button></div></div><div class="modal-ft"><button class="btn-save" onclick="Classes.close()">Done</button></div></div></div>
+
+<!-- REASSIGN ON DELETE MODAL -->
+<div class="modal-overlay" id="reassignOverlay"><div class="modal modal-sm"><div class="modal-hd"><span>Reassign before delete</span></div><div class="modal-bd"><p class="reassign-lead">You're about to delete <strong id="reassignClassName"></strong>. It's used by <strong id="reassignCount"></strong> existing entries.</p><div class="field-group"><div class="field-label">Reassign these entries to</div><select class="field-select" id="reassignTarget"></select></div></div><div class="modal-ft"><button class="btn-cancel" id="reassignCancel">Cancel</button><button class="btn-danger" id="reassignConfirm">Delete & Reassign</button></div></div></div>
+
+<!-- ADD CALENDAR SUBSCRIPTION MODAL (z-index 1100 so it stacks above Settings) -->
+<div class="modal-overlay" id="addCalOverlay" onclick="if(event.target.id==='addCalOverlay')Settings.closeAddCalSub()">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><span>Add Calendar Subscription</span><button class="modal-close" onclick="Settings.closeAddCalSub()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-bd">
+      <div class="field-group"><div class="field-label">Calendar Name</div><input class="field-input" id="calSubName" placeholder="e.g. School Calendar"></div>
+      <div class="field-group"><div class="field-label">iCal / ICS URL <span class="field-hint">(public Google Calendar, iCal feed, or .ics link)</span></div><input class="field-input" id="calSubUrl" placeholder="https://calendar.google.com/calendar/ical/..."></div>
+      <div class="field-group"><div class="field-label">Secret Key <span class="field-hint">(optional, for private/authenticated calendars)</span></div><input class="field-input" id="calSubSecret" type="password" placeholder="Leave blank for public calendars" autocomplete="off"></div>
+      <div class="field-group"><div class="field-label">Default Event Type <span class="field-hint">(you can change individual events after import)</span></div><select class="field-select" id="calSubType"><option value="class">Class</option><option value="exam">Exam</option><option value="meeting">Meeting</option><option value="study">Study</option><option value="ec">EC</option><option value="free">Free</option><option value="meal">Meal</option><option value="work">Work</option><option value="other" selected>Other</option></select></div>
+    </div>
+    <div class="modal-ft"><button class="btn-cancel" onclick="Settings.closeAddCalSub()">Cancel</button><button class="btn-save" onclick="Settings.commitAddCalSub()">Add Calendar</button></div>
+  </div>
+</div>
+
+<!-- AI CHAT BUBBLE -->
+<button id="aiBubble" onclick="AI.toggle()" title="Ask Claude"><svg viewBox="0 0 28 28" fill="none"><path d="M14 3c-6 0-11 4.5-11 10 0 3 1.5 5.7 4 7.5L5.5 24l4-1.5c1.4.5 3 0.8 4.5 0.8 6 0 11-4.5 11-10S20 3 14 3z" fill="white"/></svg></button>
+
+<!-- AI CHAT PANEL -->
+<div id="aiPanel">
+  <div class="ai-hd">
+    <div class="ai-hd-title">
+      <div class="ai-hd-avatar"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z" fill="rgba(255,255,255,.9)"/><circle cx="7.5" cy="9" r="1" fill="#007aff"/><circle cx="12.5" cy="9" r="1" fill="#007aff"/><path d="M7 12.5c1 1 2 1.5 3 1.5s2-.5 3-1.5" stroke="#007aff" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg></div>
+      <div class="ai-hd-info"><div class="ai-hd-name">Claude</div><div class="ai-hd-sub">Your planner assistant</div></div>
+    </div>
+    <button class="ai-hd-close" onclick="AI.toggle()"><svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="ai-body" id="aiMessages"></div>
+  <div class="ai-input-row"><textarea id="aiInput" placeholder="Ask about your schedule, add tasks, plan study time..." rows="1" onkeydown="AI.handleKey(event)"></textarea><button class="ai-send" onclick="AI.send()"><svg viewBox="0 0 18 18" fill="none"><path d="M2 9l14-7-5 16-3-7-6-2z" fill="currentColor"/></svg></button></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/store.js"></script>
+<script src="js/classes.js"></script>
+<script src="js/schedule.js"></script>
+<script src="js/week.js"></script>
+<script src="js/month.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/quickadd.js"></script>
+<script src="js/cmdk.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
