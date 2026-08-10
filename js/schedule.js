@@ -17,10 +17,15 @@ const Sched = (() => {
   ];
 
   function getHours() {
-    const s = Settings.get ? Number(Settings.get('sStartHour', 5)) : 5;
+    // Full 24-hour day. The grid starts at the user's preferred start hour
+    // (sStartHour, default 5 AM) and wraps around so EVERY hour of the day
+    // exists on the grid: e.g. 5 AM, 6 AM ... 11 PM, 12 AM, 1 AM ... 4 AM.
+    // This means a block at any time (3 AM, 4:30 AM, etc.) always has a home
+    // and never silently disappears from the day view.
+    const raw = Settings.get ? Number(Settings.get('sStartHour', 5)) : 5;
+    const s = ((Math.round(raw) % 24) + 24) % 24;
     const arr = [];
-    for (let h = s; h < 24; h++) arr.push(h);
-    arr.push(0, 1);
+    for (let i = 0; i < 24; i++) arr.push((s + i) % 24);
     return arr;
   }
   function getSlotH() { return Settings.get ? Number(Settings.get('sSlotH', 28)) : 28; }
@@ -86,7 +91,7 @@ const Sched = (() => {
   // setOffset for week/month jump without busy loop
   function setOffset(n) { offset = n; }
 
-  function assignColumns(blocks) {
+  function assignColumns(blocks, gridStartMin = 0) {
     // Overlay blocks are pulled out of the column-splitting math. They render
     // full-width, on top of non-overlay blocks, intentionally covering them.
     // The user opts into this per-block via the overlay:true flag.
@@ -95,7 +100,17 @@ const Sched = (() => {
       .map((b, idx) => {
         const s = b._dispStart ?? b.start;
         const e = b._dispEnd ?? b.end;
-        return { idx, isOverlay: !!b.overlay, startMin: toMins(s), endMin: toMins(e) ?? (toMins(s) + 60) };
+        const sM = toMins(s);
+        let eM = toMins(e);
+        if (eM === null) eM = (sM ?? 0) + 60;
+        if (sM === null) return { idx, isOverlay: !!b.overlay, startMin: null, endMin: null };
+        // Convert to grid space (minutes since grid start hour, wrapped) so
+        // overlap detection agrees with where blocks visually sit, including
+        // blocks that span midnight.
+        const gs = ((sM - gridStartMin) + 1440) % 1440;
+        let ge = ((eM - gridStartMin) + 1440) % 1440;
+        if (ge <= gs) ge = (eM === sM) ? gs + 15 : 1440;
+        return { idx, isOverlay: !!b.overlay, startMin: gs, endMin: ge };
       })
       .filter(it => it.startMin !== null && !it.isOverlay)
       .sort((a, b) => a.startMin - b.startMin);
@@ -220,24 +235,22 @@ const Sched = (() => {
     if (isToday && Settings.get('sNowLine', true)) {
       const now = new Date();
       const nowM = now.getHours() * 60 + now.getMinutes();
-      const startM = HOURS[0] * 60;
-      let adjM = nowM;
-      if (HOURS.includes(0) && nowM < 120) adjM = nowM + 24 * 60;
-      const endM = startM + TOTAL_SLOTS * SLOT_MIN;
-      if (adjM >= startM && adjM <= endM) {
-        const topPx = ((adjM - startM) / (TOTAL_SLOTS * SLOT_MIN)) * totalH;
-        const line = document.createElement('div');
-        line.className = 'now-line';
-        line.style.top = topPx + 'px';
-        canvas.appendChild(line);
-      }
+      // Grid space: minutes since the grid's start hour, wrapped 0..1440.
+      // With the full 24h wrapped grid, "now" always has a valid position.
+      const gridStartMin = HOURS[0] * 60;
+      const adj = ((nowM - gridStartMin) + 1440) % 1440;
+      const topPx = (adj / (TOTAL_SLOTS * SLOT_MIN)) * totalH;
+      const line = document.createElement('div');
+      line.className = 'now-line';
+      line.style.top = topPx + 'px';
+      canvas.appendChild(line);
     }
 
     allBlocks.forEach(b => {
       b._dispStart = b.storedTz ? convertToLocalTz(b.start, b.storedTz) : b.start;
       b._dispEnd = b.storedTz ? convertToLocalTz(b.end, b.storedTz) : b.end;
     });
-    const columnData = assignColumns(allBlocks);
+    const columnData = assignColumns(allBlocks, HOURS[0] * 60);
     const showBlockDue = Settings.get('sBlockDue', true);
     // Whether to show the globe icon next to block times when the block was
     // created in a different timezone than the one the user is viewing from.
@@ -255,13 +268,24 @@ const Sched = (() => {
       const sM = toMins(b._dispStart);
       if (sM === null) return;
       const eM = toMins(b._dispEnd) ?? sM + 60;
-      const sh = Math.floor(sM / 60) % 24;
-      const sq = Math.floor((sM % 60) / 15);
-      const hourIdx = HOURS.indexOf(sh);
-      if (hourIdx < 0) return;
-      const top = (hourIdx * 4 + sq) * SLOT_H;
-      const duration = Math.max(SLOT_MIN, eM - sM);
-      const height = Math.max(SLOT_H, Math.round(duration / SLOT_MIN) * SLOT_H);
+      // Grid space: minutes since the grid's start hour, wrapped into 0..1440.
+      // Because the grid covers all 24 hours, every clock time maps to exactly
+      // one grid position. A 9:30 PM -> 12:45 AM block spans the midnight line
+      // on the grid and renders its full true height.
+      const gridStartMin = HOURS[0] * 60;
+      const gs = ((sM - gridStartMin) + 1440) % 1440;
+      let ge = ((eM - gridStartMin) + 1440) % 1440;
+      if (ge <= gs) {
+        // Either a zero-length block (start == end: give it minimum height)
+        // or a block that wraps past the grid's own boundary (e.g. 4 AM ->
+        // 6 AM when the grid starts at 5 AM): clamp at the grid's end.
+        ge = (eM === sM) ? gs + SLOT_MIN : TOTAL_SLOTS * SLOT_MIN;
+      }
+      const startSlot = Math.floor(gs / SLOT_MIN);
+      const top = startSlot * SLOT_H;
+      const durationMin = ge - gs;
+      const slots = Math.max(1, Math.min(Math.round(durationMin / SLOT_MIN), TOTAL_SLOTS - startSlot));
+      const height = slots * SLOT_H;
       const { col, totalCols } = columnData[bi];
       const widthPct = 100 / totalCols;
       const leftPct = col * widthPct;
@@ -390,10 +414,9 @@ const Sched = (() => {
       if (isTodayDate && Settings.get('sAutoScroll', true)) {
         const now = new Date();
         const nowM = now.getHours() * 60 + now.getMinutes();
-        const startM = HOURS[0] * 60;
-        let adjM = nowM;
-        if (HOURS.includes(0) && nowM < 120) adjM = nowM + 24 * 60;
-        const pct = Math.max(0, (adjM - startM) / (TOTAL_SLOTS * SLOT_MIN));
+        const gridStartMin = HOURS[0] * 60;
+        const adj = ((nowM - gridStartMin) + 1440) % 1440;
+        const pct = adj / (TOTAL_SLOTS * SLOT_MIN);
         const target = pct * totalH - scroller.clientHeight / 2;
         scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
       }
@@ -548,7 +571,10 @@ const Sched = (() => {
         const dy = mv.clientY - startY;
         if (Math.abs(dy) > 3) moved = true;
         if (isResize) {
-          const newH = Math.max(SLOT_H, Math.round((origHeight + dy) / SLOT_H) * SLOT_H);
+          // Clamp between one slot and the bottom of the grid so a resize
+          // can never push the block past the end of the (24h) day view.
+          const maxH = totalH - origTop;
+          const newH = Math.max(SLOT_H, Math.min(maxH, Math.round((origHeight + dy) / SLOT_H) * SLOT_H));
           block.style.height = newH + 'px';
         } else {
           const newTop = Math.max(0, Math.min(totalH - origHeight, origTop + dy));
@@ -578,11 +604,17 @@ const Sched = (() => {
           const newStartH = HOURS[hourIdx];
           const newStartMin = newStartH * 60 + qIdx * 15;
           const oldStartMin = toMins(b._dispStart);
-          const oldEndMin = toMins(b._dispEnd) ?? oldStartMin + 60;
+          let oldEndMin = toMins(b._dispEnd) ?? oldStartMin + 60;
+          // Midnight-crossing block: true duration = (24:00 - start) + end
+          if (oldEndMin < oldStartMin) oldEndMin += 24 * 60;
           const delta = newStartMin - oldStartMin;
+          // Preserve true duration. The new end can exceed 24:00 after the
+          // shift; wrap it back into 0-24:00 range via modulo when converting.
+          let newEndMinRaw = oldEndMin + delta;
+          const newEndWrapped = ((newEndMinRaw % (24 * 60)) + 24 * 60) % (24 * 60);
           const changes = {
             start: _reverseTz(fromMins(newStartMin), b.storedTz),
-            end: _reverseTz(fromMins(oldEndMin + delta), b.storedTz),
+            end: _reverseTz(fromMins(newEndWrapped), b.storedTz),
           };
           // Set overlay on Option-drag; clear on plain drag. This keeps the
           // default behavior (side-by-side) unless the user explicitly asked
