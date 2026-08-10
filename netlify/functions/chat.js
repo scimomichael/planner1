@@ -198,8 +198,13 @@ exports.handler = async (event) => {
       date_map: dateMap,
       focus: context?.focus || {},
       schedule: context?.schedule || {},
+      summary: context?.summary || null,
       classes: context?.classes || [],
       blockTypes: context?.blockTypes || [],
+      templates: context?.templates || [],
+      calendarSubscriptions: context?.calendarSubscriptions || [],
+      settings: context?.settings || null,
+      dailyAffirmation: context?.dailyAffirmation || null,
       recentChanges: Array.isArray(context?.recentChanges) ? context.recentChanges : [],
     };
 
@@ -207,7 +212,16 @@ exports.handler = async (event) => {
 Today is ${today.pretty}.
 Current local wall time: ${today.wallTime} ${tz}.
 
-Use this planner state (existing blocks indexed per date):
+COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. You are never missing data; if something is not in this state, it does not exist on the planner.
+
+Key sections:
+- schedule: every block on every date, indexed per date. Blocks omit fields that are empty/false (e.g. a block without "done" is NOT completed; without "status" it is "scheduled").
+- summary.overdueAssignments: the definitive precomputed list of ALL overdue assignments (due date passed, not completed), each with the exact date and index you need for update_block actions. TRUST THIS LIST. Never claim there are no overdue assignments without checking it. summary.assignments.overdue is the count the Stats page shows the user.
+- summary.dueSoon: assignments due within 7 days, not yet completed.
+- To mark an assignment completed use update_block with { done: true, status: "completed" }. To un-complete use { done: false, status: "scheduled" }.
+- recentChanges: audit log of everything that happened recently (manual edits, AI actions, calendar syncs), with local timestamps.
+- templates, calendarSubscriptions, settings, dailyAffirmation, classes: the rest of the planner's state.
+
 ${JSON.stringify(enrichedContext, null, 2)}
 `;
 
@@ -222,7 +236,7 @@ ${JSON.stringify(enrichedContext, null, 2)}
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1500,
+        max_tokens: 4000,
         system: fullSystem,
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
