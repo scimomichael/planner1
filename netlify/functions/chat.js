@@ -216,7 +216,7 @@ exports.handler = async (event) => {
 Today is ${today.pretty}.
 Current local wall time: ${today.wallTime} ${tz}.
 
-COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. You are never missing data; if something is not in this state, it does not exist on the planner.
+COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. You have access to real-time web search. When answering questions about current events, live information, recent changes, or facts that may have changed since April 2024, consider using search. For example: recent exam schedules, competitive event dates, news about schools, live calendar events, current policies. For knowledge questions about timeless facts or concepts, prefer your training knowledge (faster, no latency). Never search for questions you can already answer from the planner context or your training data. Examples of good search moments: "when is the NSDA nationals this year", "what's the date of the robotics world championship", "did my school change the exam schedule". Examples to skip searching: "what's the AP Bio curriculum", "how do I study for exams", "create a block for lunch".
 
 Key sections:
 - schedule: every block on every date, indexed per date. Blocks omit fields that are empty/false (e.g. a block without "done" is NOT completed; without "status" it is "scheduled").
@@ -242,6 +242,12 @@ ${JSON.stringify(enrichedContext, null, 2)}
         model: "claude-haiku-4-5-20251001",
         max_tokens: 4000,
         system: fullSystem,
+        tools: [
+          {
+            type: "web_search",
+            name: "web_search_20250305"
+          }
+        ],
         messages: messages.map(m => ({ role: m.role, content: m.content })),
       }),
     });
