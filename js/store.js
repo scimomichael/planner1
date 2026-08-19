@@ -534,6 +534,43 @@ const Store = (() => {
     persist();
   }
 
+  function deleteBlocksByLabelPattern(pattern) {
+    // Delete all blocks whose label contains pattern (case-insensitive).
+    // Used to clean up old recurring unwanted events like "Senior Advisory Activity".
+    // Returns the count deleted.
+    const pat = (pattern || '').toLowerCase().trim();
+    if (!pat) return 0;
+    let count = 0;
+    const datesWithDeletes = [];
+    Object.keys(schedule).forEach(dk => {
+      const list = schedule[dk];
+      if (!list) return;
+      // Iterate backwards so splice doesn't mess up indices
+      for (let i = list.length - 1; i >= 0; i--) {
+        const b = list[i];
+        if (b && b.label && b.label.toLowerCase().includes(pat)) {
+          _logChange({
+            type: 'block_deleted',
+            summary: `Deleted block "${b.label}" on ${dk} (pattern: "${pattern}")`,
+            date: dk,
+            snapshot: {
+              label: b.label, type: b.type, start: b.start, end: b.end,
+              classLabel: b.classLabel || '', due: b.due || null,
+              dueTime: b.dueTime || '', dueInClass: !!b.dueInClass,
+              importUid: b.importUid || null,
+            },
+          });
+          if (b.importUid) recordCalSubDeletion(b.importUid);
+          list.splice(i, 1);
+          count++;
+          if (!datesWithDeletes.includes(dk)) datesWithDeletes.push(dk);
+        }
+      }
+    });
+    if (count > 0) persist();
+    return count;
+  }
+
   return {
     get schedule() { return schedule; },
     set schedule(v) { schedule = v; },
@@ -549,6 +586,6 @@ const Store = (() => {
     getClasses, getClassByName, addClass, updateClass, removeClass,
     countClassAssignments, reorderClasses,
     getCalSubs, getCalSub, addCalSub, updateCalSub, removeCalSub,
-    recordCalSubDeletion, isCalTombstoned, markBlockUserEdited, removeBlock,
+    recordCalSubDeletion, isCalTombstoned, markBlockUserEdited, removeBlock, deleteBlocksByLabelPattern,
   };
 })();
