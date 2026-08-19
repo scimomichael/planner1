@@ -85,7 +85,7 @@ const actionsApplied=otherActs.length?executeActions(otherActs):0;history.push({
     timezone:_tz,
     schedule:sched,
     summary,
-    classes:Store.getClasses().map(c=>({name:c.name,color:c.color})),
+    classes:Store.getClasses().map(c=>({name:c.name,color:c.color,archived:!!c.archived||undefined})),
     blockTypes:Sched.getBlockTypes().map(t=>t.id),
     templates,
     calendarSubscriptions,

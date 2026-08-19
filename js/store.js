@@ -434,6 +434,14 @@ const Store = (() => {
     if (patch.color !== undefined && patch.color !== oldColor) {
       _logChange({ type: 'class_recolored', summary: `Recolored class "${c.name}" to ${patch.color}`, name: c.name, oldColor, newColor: patch.color });
     }
+    if (patch.archived !== undefined && !!patch.archived !== !!c.archived) {
+      c.archived = !!patch.archived;
+      _logChange({
+        type: c.archived ? 'class_archived' : 'class_unarchived',
+        summary: (c.archived ? 'Archived' : 'Restored') + ` class "${c.name}"`,
+        name: c.name,
+      });
+    }
     persist();
     return true;
   }

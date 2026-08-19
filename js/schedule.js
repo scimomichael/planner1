@@ -158,7 +158,21 @@ const Sched = (() => {
     const TOTAL_SLOTS = HOURS.length * 4;
     const totalH = TOTAL_SLOTS * SLOT_H;
 
-    const rawBlocks = Store.schedule[dk] || [];
+    // Auto-complete class blocks whose time has passed (idempotent, cheap).
+    autoCompletePastClasses();
+
+    // Raw blocks for this date. A RECURRING block's done/status must come
+    // from its per-date overrides even on its own source date; the base
+    // done flag would otherwise leak into every projected occurrence.
+    const rawBlocks = (Store.schedule[dk] || []).map(b => {
+      if (b && b.recur && b.recur !== 'none') {
+        const c = { ...b };
+        if (b.doneOverrides && Object.prototype.hasOwnProperty.call(b.doneOverrides, dk)) c.done = !!b.doneOverrides[dk];
+        if (b.statusOverrides && Object.prototype.hasOwnProperty.call(b.statusOverrides, dk)) c.status = b.statusOverrides[dk];
+        return c;
+      }
+      return b;
+    });
     const allBlocks = [...rawBlocks];
     Object.entries(Store.schedule).forEach(([src, list]) => {
       if (src === dk) return;
@@ -749,22 +763,107 @@ const Sched = (() => {
       const list = Store.schedule[dk];
       if (!list || !list[bi]) return;
       Store.snapshot();
-      const wasDone = !!list[bi].done;
-      list[bi].done = !wasDone;
-      // Keep status in sync with the done flag. When unchecking, revert to
-      // 'scheduled' so the block stops showing the completed badge.
-      list[bi].status = wasDone ? 'scheduled' : 'completed';
-      Store.logChange({
-        type: wasDone ? 'block_uncompleted' : 'block_completed',
-        summary: (wasDone ? 'Unmarked ' : 'Completed ') + `"${list[bi].label || '?'}" on ${dk}`,
-        date: dk, label: list[bi].label || '',
-      });
+      const blk = list[bi];
+      if (blk.recur && blk.recur !== 'none') {
+        // Recurring block toggled on its own source date: use per-date
+        // overrides, never the base done flag (which would leak into every
+        // other occurrence of this block).
+        blk.doneOverrides = blk.doneOverrides || {};
+        blk.statusOverrides = blk.statusOverrides || {};
+        const wasDone = Object.prototype.hasOwnProperty.call(blk.doneOverrides, dk) ? !!blk.doneOverrides[dk] : !!blk.done;
+        blk.doneOverrides[dk] = !wasDone;
+        blk.statusOverrides[dk] = wasDone ? 'scheduled' : 'completed';
+        Store.logChange({
+          type: wasDone ? 'block_uncompleted' : 'block_completed',
+          summary: (wasDone ? 'Unmarked ' : 'Completed ') + `"${blk.label || '?'}" on ${dk} (recurring)`,
+          date: dk, label: blk.label || '',
+        });
+      } else {
+        const wasDone = !!blk.done;
+        blk.done = !wasDone;
+        // Keep status in sync with the done flag. When unchecking, revert to
+        // 'scheduled' so the block stops showing the completed badge. Also
+        // record explicit un-completes so auto-complete never fights the user.
+        blk.status = wasDone ? 'scheduled' : 'completed';
+        if (wasDone) blk.userUncompleted = true; else delete blk.userUncompleted;
+        Store.logChange({
+          type: wasDone ? 'block_uncompleted' : 'block_completed',
+          summary: (wasDone ? 'Unmarked ' : 'Completed ') + `"${blk.label || '?'}" on ${dk}`,
+          date: dk, label: blk.label || '',
+        });
+      }
       Store.persist(); _preserveScroll(); renderBoth();
     }
   }
 
   function renderBoth() {
     render('schedGrid', 'schedLabel', offset);
+  }
+
+  // Mark every "class" block whose time has passed as completed. Runs on
+  // every render (idempotent). Respects: cancelled status, explicit user
+  // un-completes (userUncompleted flag / explicit-false doneOverrides), and
+  // recurring blocks (per-date overrides only, never the base done flag).
+  function autoCompletePastClasses() {
+    const todayStr = Store.todayStr();
+    const now = new Date();
+    const nowM = now.getHours() * 60 + now.getMinutes();
+    let count = 0;
+
+    Object.keys(Store.schedule).forEach(src => {
+      const list = Store.schedule[src];
+      if (!list) return;
+      list.forEach(b => {
+        if (!b || b.type !== 'class' || b.status === 'cancelled') return;
+        const sM = toMins(b.start);
+        const eM = toMins(b.end);
+        if (eM === null) return;
+        const crossesMidnight = sM !== null && eM < sM;
+
+        if (b.recur && b.recur !== 'none') {
+          // Recurring class: complete each past occurrence via overrides.
+          // An occurrence with an EXPLICIT override entry (true or false) is
+          // left alone -- explicit false means the user unchecked it.
+          const startD = new Date(src + 'T00:00:00');
+          const endD = new Date(todayStr + 'T00:00:00');
+          if (isNaN(startD) || isNaN(endD) || startD > endD) return;
+          for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+            const odk = Store.toStr(d);
+            const rel = Store.daysUntil(odk);
+            if (rel === null || rel > 0) continue;
+            const ended = rel < 0 || (!crossesMidnight && eM <= nowM);
+            if (!ended) continue;
+            if (!_recursOn(b, src, odk)) continue;
+            b.doneOverrides = b.doneOverrides || {};
+            if (Object.prototype.hasOwnProperty.call(b.doneOverrides, odk)) continue;
+            b.statusOverrides = b.statusOverrides || {};
+            b.doneOverrides[odk] = true;
+            b.statusOverrides[odk] = 'completed';
+            count++;
+          }
+        } else {
+          if (b.done || b.userUncompleted) return;
+          const rel = Store.daysUntil(src);
+          if (rel === null || rel > 0) return;
+          const ended = rel < 0 || (!crossesMidnight && eM <= nowM);
+          if (!ended) return;
+          b.done = true;
+          b.status = 'completed';
+          b.autoCompleted = true;
+          count++;
+        }
+      });
+    });
+
+    if (count > 0) {
+      Store.logChange({
+        type: 'block_completed',
+        summary: `Auto-completed ${count} past class block${count === 1 ? '' : 's'}`,
+        source: 'auto',
+      });
+      Store.persist();
+    }
+    return count;
   }
 
   function _preserveScroll() {
@@ -1117,13 +1216,15 @@ const EditBlock = (() => {
     const orig = Store.schedule[_dk]?.[_bi] || {};
     // Keep done flag and status in sync: completed -> done=true; anything
     // else (scheduled/in-progress/cancelled) -> done=false. Matches the
-    // behavior of clicking the check circle on a block.
+    // behavior of clicking the check circle on a block. If the user flips a
+    // completed block back, remember that so auto-complete never re-marks it.
     const doneFromStatus = (status === 'completed');
     const block = {
       ...orig, label, type: _type, css, start, end, due, dueTime, dueInClass, classLabel, description, storedTz,
       recur: recurVal === 'none' ? null : recurVal,
       priority, status, reminder, location, link, overlay, userEdited: true,
       done: doneFromStatus,
+      userUncompleted: doneFromStatus ? false : (!!orig.done || !!orig.userUncompleted),
     };
     if (newDk !== _dk) {
       // Cross-date edit: suppress the individual delete/add log entries and
