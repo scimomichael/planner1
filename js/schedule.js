@@ -74,6 +74,7 @@ const Sched = (() => {
   let _scrollAnchor = null;
   const _preservedScroll = {};
   const _skipPreserve = {};
+  const _lastRenderedDk = {};
   function dateFor(off) { const d = new Date(Store.today()); d.setDate(d.getDate() + off); return d; }
   function dayLabel(d) {
     const n = Store.daysUntil(Store.toStr(d));
@@ -186,8 +187,15 @@ const Sched = (() => {
     // seamless instead of snapping to top. An explicit _preservedScroll
     // or _scrollAnchor set by a caller still wins. _skipPreserve lets
     // today() forces a fresh autoscroll to the now-line.
+    // DAY NAVIGATION is different: switching to another date must NOT
+    // inherit the previous day's scroll. Today re-centers on the now-line;
+    // any other day always opens with 9 AM at the top (see bottom of render).
+    const dayNavigated = _lastRenderedDk[gridId] !== undefined && _lastRenderedDk[gridId] !== dk;
+    _lastRenderedDk[gridId] = dk;
     if (_skipPreserve[gridId]) {
       delete _skipPreserve[gridId];
+      delete _preservedScroll[gridId];
+    } else if (dayNavigated) {
       delete _preservedScroll[gridId];
     } else if (_preservedScroll[gridId] === undefined && !(_scrollAnchor && _scrollAnchor.gridId === gridId)) {
       const existingScroller = box.querySelector('.sched-scroll');
@@ -409,15 +417,25 @@ const Sched = (() => {
         scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
       }
       _scrollAnchor = null;
-    } else if (!_initDone[initKey]) {
+    } else if (dayNavigated || !_initDone[initKey]) {
       _initDone[initKey] = true;
-      if (isTodayDate && Settings.get('sAutoScroll', true)) {
-        const now = new Date();
-        const nowM = now.getHours() * 60 + now.getMinutes();
+      if (isTodayDate) {
+        // Today: center the viewport on the current time (with the now-line).
+        if (Settings.get('sAutoScroll', true)) {
+          const now = new Date();
+          const nowM = now.getHours() * 60 + now.getMinutes();
+          const gridStartMin = HOURS[0] * 60;
+          const adj = ((nowM - gridStartMin) + 1440) % 1440;
+          const pct = adj / (TOTAL_SLOTS * SLOT_MIN);
+          const target = pct * totalH - scroller.clientHeight / 2;
+          scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
+        }
+      } else {
+        // Any other day: ALWAYS open with 9 AM at the top of the box,
+        // every time you navigate here, regardless of past scrolling.
         const gridStartMin = HOURS[0] * 60;
-        const adj = ((nowM - gridStartMin) + 1440) % 1440;
-        const pct = adj / (TOTAL_SLOTS * SLOT_MIN);
-        const target = pct * totalH - scroller.clientHeight / 2;
+        const adj = ((9 * 60 - gridStartMin) + 1440) % 1440;
+        const target = (adj / (TOTAL_SLOTS * SLOT_MIN)) * totalH;
         scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
       }
     }

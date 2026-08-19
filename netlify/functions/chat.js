@@ -244,8 +244,8 @@ ${JSON.stringify(enrichedContext, null, 2)}
         system: fullSystem,
         tools: [
           {
-            type: "web_search",
-            name: "web_search_20250305"
+            type: "web_search_20250305",
+            name: "web_search"
           }
         ],
         messages: messages.map(m => ({ role: m.role, content: m.content })),
