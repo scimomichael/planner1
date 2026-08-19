@@ -431,11 +431,21 @@ const Sched = (() => {
           scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
         }
       } else {
-        // Any other day: ALWAYS open with 9 AM at the top of the box,
+        // Any other day: open scrolled so the day's FIRST event sits just
+        // below the top of the box (a couple slots of breathing room above
+        // it). Days with no events fall back to 8:45 AM at the top. Applies
         // every time you navigate here, regardless of past scrolling.
         const gridStartMin = HOURS[0] * 60;
-        const adj = ((9 * 60 - gridStartMin) + 1440) % 1440;
-        const target = (adj / (TOTAL_SLOTS * SLOT_MIN)) * totalH;
+        let anchorMin = null;
+        allBlocks.forEach(b => {
+          if (b.overlay) return;
+          const sM = toMins(b._dispStart);
+          if (sM === null) return;
+          const gs = ((sM - gridStartMin) + 1440) % 1440;
+          if (anchorMin === null || gs < anchorMin) anchorMin = gs;
+        });
+        if (anchorMin === null) anchorMin = ((8 * 60 + 45 - gridStartMin) + 1440) % 1440;
+        const target = Math.floor(anchorMin / SLOT_MIN) * SLOT_H - 2 * SLOT_H;
         scroller.scrollTop = Math.max(0, Math.min(target, totalH - scroller.clientHeight));
       }
     }
