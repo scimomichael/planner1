@@ -119,6 +119,8 @@ CRITICAL: If the user asks you to add/move/edit anything, you MUST emit the acti
 - duplicate_block: {type:"duplicate_block", date, index, toDate?, newStart?, newEnd?}
 - delete_block: {type:"delete_block", date, index}
 - bulk_add_blocks: {type:"bulk_add_blocks", blocks:[{date, label, blockType, start, end, ...}, ...]}
+- search_email: {type:"search_email", query, maxResults?}
+  ONLY when the user explicitly asks you to check/search/look through their email (e.g. "check my email for the robotics tournament"). Emit a Gmail search query; Gmail operators are allowed and encouraged (from:, subject:, "exact phrase", newer_than:60d, OR). Prefer distinctive keywords from the user's request over generic words. Do NOT create any blocks in the same reply as a search_email; the app runs the search in the user's browser and sends the results back to you in a follow-up message labeled EMAIL SEARCH RESULTS. When you receive EMAIL SEARCH RESULTS: extract the real event details (exact date, start and end time, location, title) from the email text and emit add_block action(s). Convert phrasing like "next Friday" in an email relative to the email's Date header, not today. If times are missing, pick a sensible time and say you guessed. If nothing relevant was found, say so plainly and suggest a better search phrase. Never invent details that are not in the emails. If the user asks about email but Gmail is not connected, the app will tell them; you may still emit search_email and the app handles it.
 - add_class: {type:"add_class", name, color?}
 - rename_class: {type:"rename_class", oldName, newName}
 

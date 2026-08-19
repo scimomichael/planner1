@@ -14,6 +14,7 @@
 const Cal = (() => {
   const FILTERED_PATTERNS = [
     'junior advisory activity',
+    'senior advisory activity',
     'daily worship',
     'unproctored spring sh',
     'unproctored fall sh',

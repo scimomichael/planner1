@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="Scimo Planner">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -164,6 +165,11 @@
       <div class="settings-section"><div class="settings-section-title">Calendar Subscriptions</div><div class="settings-list"><div id="calSubsList"></div>
         <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Add Calendar</div><div class="settings-row-sub">Import events from Google Calendar, iCal, or any .ics feed</div></div><div class="settings-row-ctrl"><button class="btn-cancel" onclick="Settings.showAddCalSub()">Add</button></div></div>
       </div></div>
+      <div class="settings-section"><div class="settings-section-title">Gmail</div><div class="settings-list">
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Google OAuth Client ID</div><div class="settings-row-sub">From console.cloud.google.com, a Web application OAuth client with https://scimoplanner.com as an authorized origin</div></div><div class="settings-row-ctrl"><input type="text" class="field-input" id="gmailClientId" placeholder="xxxx.apps.googleusercontent.com" style="width:200px" oninput="Gmail.saveClientId(this.value)"></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Connect Gmail</div><div class="settings-row-sub" id="gmailStatus">Not connected</div></div><div class="settings-row-ctrl"><button class="btn-cancel" id="gmailConnectBtn" onclick="Gmail.toggleConnect()">Connect</button></div></div>
+        <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">How it works</div><div class="settings-row-sub">Read-only. Manual only: the AI checks email only when you ask it to, e.g. "check my email for the field trip form". The connection lives in this browser tab and is never stored on any server.</div></div></div>
+      </div></div>
       <div class="settings-section"><div class="settings-section-title">Data & Sync</div><div class="settings-list">
         <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Cross-Device Sync</div><div class="settings-row-sub">Sync your data across all browsers</div></div><div class="settings-row-ctrl"><label class="toggle"><input type="checkbox" id="sCrossSync" checked onchange="Settings.save()"><span class="toggle-track"></span></label></div></div>
         <div class="settings-row"><div class="settings-row-main"><div class="settings-row-title">Timezone</div><div class="settings-row-sub" id="tzDisplay">Detecting...</div></div></div>
@@ -227,6 +233,7 @@
 <script src="js/templates.js"></script>
 <script src="js/quickadd.js"></script>
 <script src="js/cmdk.js"></script>
+<script src="js/gmail.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/notify.js"></script>
 <script src="js/calendar.js"></script>
