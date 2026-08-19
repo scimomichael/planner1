@@ -121,8 +121,6 @@ CRITICAL: If the user asks you to add/move/edit anything, you MUST emit the acti
 - delete_blocks_by_label_pattern: {type:"delete_blocks_by_label_pattern", pattern}
   Delete ALL blocks whose label contains the pattern (case-insensitive substring match). Use this when the user asks to remove all instances of a recurring unwanted event, e.g. "delete all senior advisory activity blocks" -> emit {type:"delete_blocks_by_label_pattern", pattern:"senior advisory activity"}. Returns the count of blocks deleted. This also tombstones any calendar-imported blocks so they won't resurrect on the next calendar sync.
 - bulk_add_blocks: {type:"bulk_add_blocks", blocks:[{date, label, blockType, start, end, ...}, ...]}
-- search_email: {type:"search_email", query, maxResults?}
-  ONLY when the user explicitly asks you to check/search/look through their email (e.g. "check my email for the robotics tournament"). Emit a Gmail search query; Gmail operators are allowed and encouraged (from:, subject:, "exact phrase", newer_than:60d, OR). Prefer distinctive keywords from the user's request over generic words. Do NOT create any blocks in the same reply as a search_email; the app runs the search in the user's browser and sends the results back to you in a follow-up message labeled EMAIL SEARCH RESULTS. When you receive EMAIL SEARCH RESULTS: extract the real event details (exact date, start and end time, location, title) from the email text and emit add_block action(s). Convert phrasing like "next Friday" in an email relative to the email's Date header, not today. If times are missing, pick a sensible time and say you guessed. If nothing relevant was found, say so plainly and suggest a better search phrase. Never invent details that are not in the emails. If the user asks about email but Gmail is not connected, the app will tell them; you may still emit search_email and the app handles it.
 - add_class: {type:"add_class", name, color?}
 - rename_class: {type:"rename_class", oldName, newName}
 
@@ -216,7 +214,10 @@ exports.handler = async (event) => {
 Today is ${today.pretty}.
 Current local wall time: ${today.wallTime} ${tz}.
 
-COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. You have access to real-time web search. When answering questions about current events, live information, recent changes, or facts that may have changed since April 2024, consider using search. For example: recent exam schedules, competitive event dates, news about schools, live calendar events, current policies. For knowledge questions about timeless facts or concepts, prefer your training knowledge (faster, no latency). Never search for questions you can already answer from the planner context or your training data. Examples of good search moments: "when is the NSDA nationals this year", "what's the date of the robotics world championship", "did my school change the exam schedule". Examples to skip searching: "what's the AP Bio curriculum", "how do I study for exams", "create a block for lunch".
+COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. You have two search tools with STRICTLY separate domains:
+1. web_search: the PUBLIC INTERNET only. Current events, live schedules, competition dates, news. It can NEVER see the user's email.
+2. search_email: the user's own GMAIL INBOX only (read-only, runs in their browser). Use it for ANY request about their email or messages: "check my email for X", "did I get an email from Y", "find the message about Z". Never use web_search for these. When you call search_email, the results arrive as tool results; read them, then reply and emit planner actions (add_block etc.) based ONLY on details actually present in the emails. Interpret relative dates like "next Friday" against the email's Date header, not today. If nothing relevant comes back, say so and suggest a better search phrase. Never invent details.
+For questions answerable from the planner context or your training knowledge, use no tools at all. Examples of good web_search moments: "when is NSDA nationals this year", "did my school change the exam schedule". Examples to skip searching entirely: "what's the AP Bio curriculum", "create a block for lunch".
 
 Key sections:
 - schedule: every block on every date, indexed per date. Blocks omit fields that are empty/false (e.g. a block without "done" is NOT completed; without "status" it is "scheduled").
@@ -246,6 +247,24 @@ ${JSON.stringify(enrichedContext, null, 2)}
           {
             type: "web_search_20250305",
             name: "web_search"
+          },
+          {
+            name: "search_email",
+            description: "Search the user's own Gmail inbox (read-only; executed in the user's browser). Use this for ANY request about the user's email, inbox, or messages they received. NEVER use web_search for email; web_search only reaches the public internet and cannot see the user's Gmail.",
+            input_schema: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description: "Gmail search query. Gmail operators allowed and encouraged: from:, to:, subject:, \"exact phrase\", newer_than:7d, older_than:30d, OR"
+                },
+                maxResults: {
+                  type: "integer",
+                  description: "Max messages to fetch (1-8, default 5)"
+                }
+              },
+              required: ["query"]
+            }
           }
         ],
         messages: messages.map(m => ({ role: m.role, content: m.content })),
@@ -262,6 +281,28 @@ ${JSON.stringify(enrichedContext, null, 2)}
       .filter(b => b.type === "text")
       .map(b => b.text)
       .join("\n");
+
+    // If the model called the search_email tool, hand the request back to the
+    // client: Gmail lives in the user's browser, so the client executes the
+    // search and POSTs a continuation with tool_result blocks.
+    if (data.stop_reason === "tool_use") {
+      const emailCalls = (data.content || [])
+        .filter(b => b.type === "tool_use" && b.name === "search_email")
+        .map(b => ({ id: b.id, input: b.input || {} }));
+      if (emailCalls.length) {
+        return {
+          statusCode: 200,
+          headers: H,
+          body: JSON.stringify({
+            text,
+            actions: [],
+            emailToolCalls: emailCalls,
+            assistantContent: data.content,
+            today: today.date,
+          }),
+        };
+      }
+    }
 
     // Extract actions fence; be lenient about casing & whitespace.
     let actions = [];
