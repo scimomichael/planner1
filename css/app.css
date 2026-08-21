@@ -520,3 +520,10 @@ html[data-theme="dark"] .sched-block-status{background:rgba(0,0,0,0.35)}
 .cls-section-title{font-size:11px;letter-spacing:.6px;text-transform:uppercase;opacity:.45;margin:16px 2px 6px;font-weight:600}
 .cls-row.archived{opacity:.62}
 .cls-row.archived:hover{opacity:.85}
+
+/* AI attach + mic buttons */
+.ai-input-row .ai-attach,.ai-input-row .ai-mic{flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;opacity:.55;transition:opacity var(--t-fast)}
+.ai-input-row .ai-attach:hover,.ai-input-row .ai-mic:hover{opacity:1}
+.ai-mic.recording{opacity:1;color:#ff3b30;animation:mic-pulse 1.2s ease-in-out infinite}
+@keyframes mic-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+#aiAttachPreview{display:none}
