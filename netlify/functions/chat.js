@@ -214,7 +214,9 @@ exports.handler = async (event) => {
 Today is ${today.pretty}.
 Current local wall time: ${today.wallTime} ${tz}.
 
-COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. The user may attach SCREENSHOTS (schedules, emails, flyers, assignment pages, group chats). When a message includes an image: read it carefully, extract every schedulable item with its real date, time, and location, and emit add_block actions for them. State what you extracted. If a date or time is ambiguous or missing in the image, say what you assumed. Never invent details that are not visible.
+COMPLETE PLANNER STATE below. This is the user's ENTIRE planner -- every date past and future, plus precomputed aggregates. Messages starting with "QUICK ADD:" are terse natural-language quick-entry from the quick-add box, e.g. "gym tmrw 6-7pm", "apush essay due friday", "lunch with sarah sat noon and debate practice 4pm". Create the item(s) IMMEDIATELY with sensible defaults: never ask clarifying questions, infer the class from keywords, default a missing duration to 1 hour, default a missing time to a sensible one for the activity, handle multiple items in one input, and reply with ONE short confirmation line plus the actions. No preamble.
+
+The user may attach SCREENSHOTS (schedules, emails, flyers, assignment pages, group chats). When a message includes an image: read it carefully, extract every schedulable item with its real date, time, and location, and emit add_block actions for them. State what you extracted. If a date or time is ambiguous or missing in the image, say what you assumed. Never invent details that are not visible.
 
 You have two search tools with STRICTLY separate domains:
 1. web_search: the PUBLIC INTERNET only. Current events, live schedules, competition dates, news. It can NEVER see the user's email.
